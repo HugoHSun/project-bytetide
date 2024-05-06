@@ -21,7 +21,7 @@ void sigint_handler(int signum) {
 int main(int argc, char **argv) {
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <port>\n", argv[0] );
+        fprintf(stderr, "Usage: %s <port>\n", argv[0]);
         return -1;
     }
 
@@ -32,14 +32,14 @@ int main(int argc, char **argv) {
     }
 
     int port;
-    errno=0;
+    errno = 0;
     port = atoi(argv[1]);
     if (errno) {
         fprintf(stderr, "Failed to convert %s to int\n", argv[1]);
         return -1;
     }
 
-    int server_fd; 
+    int server_fd;
     struct sockaddr_in address;
 
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    if (bind(server_fd, (struct sockaddr *) &address, sizeof(address)) < 0) {
         perror("Bind failed");
         exit(EXIT_FAILURE);
     }
@@ -65,12 +65,14 @@ int main(int argc, char **argv) {
         printf("waiting for connections\n");
 
         socklen_t addrlen = sizeof(struct sockaddr);
-        if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
+        if ((new_socket = accept(server_fd, (struct sockaddr *) &address,
+                                 (socklen_t *) &addrlen)) < 0) {
             perror("Accept failed");
             exit(EXIT_FAILURE);
         }
         printf("New connection, socket fd is %d, IP is : %s, port : %d\n",
-               new_socket, inet_ntoa(address.sin_addr), ntohs(address.sin_port));
+               new_socket, inet_ntoa(address.sin_addr),
+               ntohs(address.sin_port));
 
         // read message
         char buffer[BUFFER_SIZE];
@@ -88,7 +90,9 @@ int main(int argc, char **argv) {
         ssize_t nwritten;
         nwritten = send(new_socket, buffer, strlen(buffer), 0);
         if (nwritten <= 0) {
-            fprintf(stderr, "could not write entire message to client: socket fd %d\n", new_socket);
+            fprintf(stderr,
+                    "could not write entire message to client: socket fd %d\n",
+                    new_socket);
             close(new_socket);
             new_socket = 0;
             break; // failed (but there could be a good reason to try again!)

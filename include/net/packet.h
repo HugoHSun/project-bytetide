@@ -26,6 +26,4 @@ struct btide_packet {
 };
 
 
-
-
 #endif

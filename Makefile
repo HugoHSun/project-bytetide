@@ -5,6 +5,8 @@ INCLUDE=-Iinclude
 
 .PHONY: clean
 
+all: pkgchecker
+
 # Required for Part 1 - Make sure it outputs a .o file
 # to either objs/ or ./
 # In your directory
