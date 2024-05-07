@@ -24,6 +24,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     // Parsing ident
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
         perror("Error Parsing Package File: ident");
+        fclose(bpkg_file);
         free(obj);
         return NULL;
     }
@@ -31,6 +32,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     if (sscanf(current_line, "ident:%c%s", &space_buf, obj->ident) != 2 ||
         space_buf != ' ') {
         perror("Invalid 'ident' in Package File");
+        fclose(bpkg_file);
         free(obj);
         return NULL;
     }
@@ -38,12 +40,14 @@ struct bpkg_obj *bpkg_load(const char *path) {
     // Parsing filename
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
         perror("Error Parsing Package File: filename");
+        fclose(bpkg_file);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "filename:%c%s", &space_buf, obj->filename) != 2 ||
         space_buf != ' ') {
         perror("Invalid 'filename' in Package File");
+        fclose(bpkg_file);
         free(obj);
         return NULL;
     }
@@ -51,12 +55,14 @@ struct bpkg_obj *bpkg_load(const char *path) {
     // Parsing size
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
         perror("Error Parsing Package File: size");
+        fclose(bpkg_file);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "size:%c%u", &space_buf, &(obj->size)) != 2 ||
         space_buf != ' ') {
         perror("Invalid 'size' in Package File");
+        fclose(bpkg_file);
         free(obj);
         return NULL;
     }
@@ -64,6 +70,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     // Parsing nhashes
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
         perror("Error Parsing Package File: nhashes");
+        fclose(bpkg_file);
         free(obj);
         return NULL;
     }
@@ -71,6 +78,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
         2 ||
         space_buf != ' ') {
         perror("Invalid 'nhashes' in Package File");
+        fclose(bpkg_file);
         free(obj);
         return NULL;
     }
@@ -80,12 +88,14 @@ struct bpkg_obj *bpkg_load(const char *path) {
     for (uint32_t i = 0; i < obj->nhashes; ++i) {
         if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
             perror("Error Parsing Package File: hashes");
+            fclose(bpkg_file);
             bpkg_obj_destroy(obj);
             return NULL;
         }
         obj->hashes[i] = calloc(HASH_SIZE, sizeof(char));
         if (sscanf(current_line, "%s", obj->hashes[i]) != 1) {
             perror("Invalid 'hash' in Package File");
+            fclose(bpkg_file);
             bpkg_obj_destroy(obj);
             return NULL;
         }
@@ -94,12 +104,14 @@ struct bpkg_obj *bpkg_load(const char *path) {
     // Parsing nchunks
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
         perror("Error Parsing Package File: nchunks");
+        fclose(bpkg_file);
         bpkg_obj_destroy(obj);
         return NULL;
     }
     if (sscanf(current_line, "nchunks:%c%u", &space_buf, &(obj->nchunks)) !=
         2 || space_buf != ' ') {
         perror("Invalid 'nchunks' in Package File");
+        fclose(bpkg_file);
         bpkg_obj_destroy(obj);
         return NULL;
     }
@@ -109,13 +121,15 @@ struct bpkg_obj *bpkg_load(const char *path) {
     for (uint32_t i = 0; i < obj->nchunks; ++i) {
         if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
             perror("Error Parsing Package File: chunks");
+            fclose(bpkg_file);
             bpkg_obj_destroy(obj);
             return NULL;
         }
-        obj->chunks[i] = malloc(sizeof(struct chunk));
+        obj->chunks[i] = calloc(1, sizeof(struct chunk));
         if (sscanf(current_line, "%s,%u,%u", obj->chunks[i]->hash,
                    &(obj->chunks[i]->offset), &(obj->chunks[i]->size)) != 3) {
             perror("Invalid 'chunk' in Package File");
+            fclose(bpkg_file);
             bpkg_obj_destroy(obj);
             return NULL;
         }
@@ -136,17 +150,20 @@ struct bpkg_obj *bpkg_load(const char *path) {
  */
 struct bpkg_query bpkg_file_check(struct bpkg_obj *bpkg) {
     struct bpkg_query query = {NULL, 1};
-
     if (bpkg == NULL) {
         return query;
     }
 
     query.hashes = calloc(1, sizeof(char *));
     if (fopen(bpkg->filename, "r") != NULL) {
-        query.hashes[0] = "File Exists";
+        char message[] = "File Exists";
+        query.hashes[0] = calloc(strlen(message), sizeof(char));
+        strcpy(query.hashes[0], message);
     } else {
         fopen(bpkg->filename, "w");
-        query.hashes[0] = "File Created";
+        char message[] = "File Created";
+        query.hashes[0] = calloc(strlen(message), sizeof(char));
+        strcpy(query.hashes[0], message);
     }
 
     return query;
@@ -215,6 +232,15 @@ struct bpkg_query bpkg_get_all_chunk_hashes_from_hash(struct bpkg_obj *bpkg,
  * the relevant queries above.
  */
 void bpkg_query_destroy(struct bpkg_query *qry) {
+    if (qry == NULL || qry->hashes == NULL) {
+        return;
+    }
+
+    for (size_t i = 0; i < qry->len; ++i) {
+        if (qry->hashes[i] != NULL) {
+            free(qry->hashes[i]);
+        }
+    }
     free(qry->hashes);
 }
 
@@ -223,24 +249,31 @@ void bpkg_query_destroy(struct bpkg_query *qry) {
  * make sure it has been completely deallocated
  */
 void bpkg_obj_destroy(struct bpkg_obj *obj) {
-    uint32_t nhashes = 0;
-    uint32_t nchunks = 0;
-
-    nhashes = obj->nhashes;
-    for (int i = 0; i < nhashes; ++i) {
-        if (obj->hashes[i] != NULL) {
-            free(obj->hashes[i]);
-        }
+    if (obj == NULL) {
+        return;
     }
-    free(obj->hashes);
 
-    nchunks = obj->nchunks;
-    for (int i = 0; i < nchunks; ++i) {
-        if (obj->chunks[i] != NULL) {
-            free(obj->chunks[i]);
+    // Free all the hashes
+    uint32_t nhashes = obj->nhashes;
+    if (obj->hashes != NULL) {
+        for (int i = 0; i < nhashes; ++i) {
+            if (obj->hashes[i] != NULL) {
+                free(obj->hashes[i]);
+            }
         }
+        free(obj->hashes);
     }
-    free(obj->chunks);
+
+    // Free all the chunks
+    uint32_t nchunks = obj->nchunks;
+    if (obj->chunks != NULL) {
+        for (int i = 0; i < nchunks; ++i) {
+            if (obj->chunks[i] != NULL) {
+                free(obj->chunks[i]);
+            }
+        }
+        free(obj->chunks);
+    }
 
     free(obj);
 }

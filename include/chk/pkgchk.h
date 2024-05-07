@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 // Have extra byte for the null terminator
 #define IDENT_MAX_SIZE 1025
