@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "../include/chk/pkgchk.h"
+#include "chk/pkgchk.h"
 
 #define MAX_LINE_SIZE 1048
 

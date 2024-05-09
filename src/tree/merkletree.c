@@ -1,3 +1,6 @@
-#include "merkletree.h"
+#include "tree/merkletree.h"
+#include "../../include/tree/merkletree.h"
 
-//Your code here!
+struct merkle_tree *create_tree() {
+    return NULL;
+}

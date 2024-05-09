@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -std=c2x -g -fsanitize=address
+CFLAGS=-Wall -std=c2x -g -Wuninitialized -Wvla -Werror -fsanitize=address, leak
 LDFLAGS=-lm -lpthread
 INCLUDE=-Iinclude
 
@@ -10,11 +10,14 @@ all: pkgchecker
 # Required for Part 1 - Make sure it outputs a .o file
 # to either objs/ or ./
 # In your directory
+merkletree.o: src/tree/merkletree.c
+	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
+
 pkgchk.o: src/chk/pkgchk.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
 
-pkgchecker: src/pkgmain.c src/chk/pkgchk.c
+pkgchecker: src/pkgmain.c src/chk/pkgchk.c src/tree/merkletree.c
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
 # Required for Part 2 - Make sure it outputs `btide` file
