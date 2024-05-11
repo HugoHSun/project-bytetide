@@ -1,14 +1,12 @@
 #ifndef PKGCHK_H
 #define PKGCHK_H
 
-#include <stddef.h>
-#include <stdint.h>
-#include <string.h>
+#include "tree/merkletree.h"
 
 // Have extra byte for the null terminator
 #define IDENT_MAX_SIZE 1025
 #define FILENAME_MAX_SIZE 257
-#define HASH_SIZE 65
+#define MAX_LINE_SIZE 1048
 
 /**
  * Query object, allows you to assign
@@ -27,15 +25,8 @@ struct bpkg_obj {
     char filename[FILENAME_MAX_SIZE];
     uint32_t size;
     uint32_t nhashes;
-    char **hashes;
     uint32_t nchunks;
-    struct chunk **chunks;
-};
-
-struct chunk {
-    char hash[HASH_SIZE];
-    uint32_t offset;
-    uint32_t size;
+    struct merkle_tree *hashes;
 };
 
 /**

@@ -1,9 +1,7 @@
 #include <chk/pkgchk.h>
-#include <crypt/sha256.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
 
 #define SHA256_HEX_LEN (64)
 
