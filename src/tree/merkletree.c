@@ -34,6 +34,7 @@ nchunks) {
     struct merkle_tree *new_tree = calloc(1, sizeof(struct merkle_tree));
     new_tree->root = nodes[0];
     new_tree->n_nodes = nhashes + nchunks;
+    new_tree->nodes = nodes;
 
     return new_tree;
 }
@@ -46,5 +47,15 @@ void free_node(merkle_tree_node *node) {
 }
 
 void free_tree(merkle_tree *tree) {
+    if(tree->nodes == NULL) {
+        return;
+    }
 
+    for (size_t i = 0; i < tree->n_nodes; ++i) {
+        if (tree->nodes[i] != NULL) {
+            free_node(tree->nodes[i]);
+        }
+    }
+    free(tree->nodes);
+    free(tree);
 }

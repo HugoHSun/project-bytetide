@@ -22,7 +22,7 @@ void free_node_buf(merkle_tree_node **buf, uint32_t size) {
 struct bpkg_obj *bpkg_load(const char *path) {
     FILE *bpkg_file = fopen(path, "r");
     if (bpkg_file == NULL) {
-        perror("Invalid Package Path");
+        perror("Invalid Package Path\n");
         return NULL;
     }
 
@@ -31,13 +31,13 @@ struct bpkg_obj *bpkg_load(const char *path) {
 
     // Parsing ident
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: ident");
+        perror("Error Parsing Package File: ident\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "ident:%1024s", obj->ident) != 1) {
-        perror("Invalid 'ident' in Package File");
+        perror("Invalid 'ident' in Package File\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
@@ -45,13 +45,13 @@ struct bpkg_obj *bpkg_load(const char *path) {
 
     // Parsing filename
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: filename");
+        perror("Error Parsing Package File: filename\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "filename:%256s", obj->filename) != 1) {
-        perror("Invalid 'filename' in Package File");
+        perror("Invalid 'filename' in Package File\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
@@ -59,13 +59,13 @@ struct bpkg_obj *bpkg_load(const char *path) {
 
     // Parsing size
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: size");
+        perror("Error Parsing Package File: size\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "size:%u", &(obj->size)) != 1) {
-        perror("Invalid 'size' in Package File");
+        perror("Invalid 'size' in Package File\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
@@ -73,28 +73,28 @@ struct bpkg_obj *bpkg_load(const char *path) {
 
     // Parsing nhashes
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: nhashes");
+        perror("Error Parsing Package File: nhashes\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "nhashes:%u", &(obj->nhashes)) != 1) {
-        perror("Invalid 'nhashes' in Package File");
+        perror("Invalid 'nhashes' in Package File\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
     }
 
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: hashes");
+        perror("Invalid format in Package File: missing 'hashes:'\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
     }
     char str_buf[FILENAME_MAX] = {0};
     if (sscanf(current_line, "%s", str_buf) != 1 || !strcmp(str_buf,
-                                                            "hashes:")) {
-        perror("Invalid format in Package File: missing 'hashes:'");
+                                                            "hashes:\n")) {
+        perror("Invalid format in Package File: missing 'hashes:'\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
@@ -107,7 +107,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     char tab_buf = 0;
     for (int i = 0; i < obj->nhashes; ++i) {
         if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-            perror("Error Parsing Package File: hashes");
+            perror("Error Parsing Package File: hashes\n");
             fclose(bpkg_file);
             free_node_buf(all_nodes, obj->nhashes);
             free(obj);
@@ -115,7 +115,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
         }
         if (sscanf(current_line, "%1c%64c", &tab_buf, hash_buf) != 2 ||
         tab_buf != '\t') {
-            perror("Invalid 'hash' in Package File");
+            perror("Invalid 'hash' in Package File\n");
             fclose(bpkg_file);
             free_node_buf(all_nodes, obj->nhashes);
             free(obj);
@@ -126,14 +126,14 @@ struct bpkg_obj *bpkg_load(const char *path) {
 
     // Parsing nchunks
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: nchunks");
+        perror("Error Parsing Package File: nchunks\n");
         fclose(bpkg_file);
         free_node_buf(all_nodes, obj->nhashes);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "nchunks:%u", &(obj->nchunks)) != 1) {
-        perror("Invalid 'nchunks' in Package File");
+        perror("Invalid 'nchunks' in Package File\n");
         fclose(bpkg_file);
         free_node_buf(all_nodes, obj->nhashes);
         free(obj);
@@ -141,14 +141,14 @@ struct bpkg_obj *bpkg_load(const char *path) {
     }
 
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: chunks");
+        perror("Error Parsing Package File: chunks\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "%s", str_buf) != 1 || !strcmp(str_buf,
-                                                            "chunks:")) {
-        perror("Invalid format in Package File: missing 'chunks:'");
+                                                            "chunks:\n")) {
+        perror("Invalid format in Package File: missing 'chunks:'\n");
         fclose(bpkg_file);
         free_node_buf(all_nodes, obj->nhashes);
         free(obj);
@@ -163,7 +163,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     uint32_t size_buf = 0;
     for (int i = 0; i < obj->nchunks; ++i) {
         if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-            perror("Error Parsing Package File: chunks");
+            perror("Invalid 'chunk' in Package File\n");
             fclose(bpkg_file);
             free_node_buf(all_nodes, num_nodes);
             free(obj);
@@ -171,7 +171,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
         }
         if (sscanf(current_line, "%1c%64c,%u,%u", &tab_buf, hash_buf,
                    &offset_buf, &size_buf) != 4 || tab_buf != '\t') {
-            perror("Invalid 'chunk' in Package File");
+            perror("Invalid 'chunk' in Package File\n");
             fclose(bpkg_file);
             free_node_buf(all_nodes, num_nodes);
             free(obj);
@@ -206,12 +206,12 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj *bpkg) {
     query.hashes = calloc(1, sizeof(char *));
     if (fopen(bpkg->filename, "r") != NULL) {
         char message[] = "File Exists";
-        query.hashes[0] = calloc(strlen(message), sizeof(char));
+        query.hashes[0] = calloc(strlen(message) + 1, sizeof(char));
         strcpy(query.hashes[0], message);
     } else {
         fopen(bpkg->filename, "w");
         char message[] = "File Created";
-        query.hashes[0] = calloc(strlen(message), sizeof(char));
+        query.hashes[0] = calloc(strlen(message) + 1, sizeof(char));
         strcpy(query.hashes[0], message);
     }
 
@@ -225,7 +225,13 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj *bpkg) {
  * 		and the number of hashes that have been retrieved
  */
 struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj *bpkg) {
-    struct bpkg_query qry = {0};
+    struct bpkg_query qry = {NULL, bpkg->hashes->n_nodes};
+
+    qry.hashes = calloc(bpkg->hashes->n_nodes, sizeof(char *));
+    for (int i = 0; i < bpkg->hashes->n_nodes; ++i) {
+        qry.hashes[i] = calloc(SHA256_HEXSTR_LEN, sizeof(char));
+        strcpy(qry.hashes[i], bpkg->hashes->nodes[i]->expected_hash);
+    }
 
     return qry;
 }

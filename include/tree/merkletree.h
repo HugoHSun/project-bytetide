@@ -24,8 +24,9 @@ typedef struct merkle_tree_node {
 } merkle_tree_node;
 
 typedef struct merkle_tree {
-    struct merkle_tree_node *root;
+    merkle_tree_node *root;
     size_t n_nodes;
+    merkle_tree_node **nodes;
 } merkle_tree;
 
 chunk *create_chunk(uint32_t offset, uint32_t size);

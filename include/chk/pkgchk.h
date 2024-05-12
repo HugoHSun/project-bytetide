@@ -7,6 +7,7 @@
 #define IDENT_MAX_SIZE 1025
 #define FILENAME_MAX_SIZE 257
 #define MAX_LINE_SIZE 1048
+#define SHA256_HEXSTR_LEN (SHA256_HEXLEN + 1)
 
 /**
  * Query object, allows you to assign
