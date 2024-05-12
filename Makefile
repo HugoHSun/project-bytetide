@@ -16,7 +16,7 @@ merkletree.o: src/tree/merkletree.c src/crypt/sha256.c
 pkgchk.o: src/chk/pkgchk.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
-pkgmain: src/pkgmain.c merkletree.o pkgchk.o
+pkgmain: src/pkgmain.c pkgchk.o merkletree.o
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
 # Required for Part 2 - Make sure it outputs `btide` file
@@ -40,6 +40,6 @@ p2tests:
 	bash p2test.sh
 
 clean:
-	rm -f objs/*
+	rm -f *.o pkgmain
     
 

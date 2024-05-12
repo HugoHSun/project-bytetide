@@ -1,6 +1,3 @@
-#include <stdlib.h>
-#include <stdio.h>
-
 #include "chk/pkgchk.h"
 
 void free_node_buf(merkle_tree_node **buf, uint32_t size) {
@@ -22,7 +19,7 @@ void free_node_buf(merkle_tree_node **buf, uint32_t size) {
 struct bpkg_obj *bpkg_load(const char *path) {
     FILE *bpkg_file = fopen(path, "r");
     if (bpkg_file == NULL) {
-        perror("Invalid Package Path\n");
+        printf("Invalid Path to Package File\n");
         return NULL;
     }
 
@@ -31,13 +28,13 @@ struct bpkg_obj *bpkg_load(const char *path) {
 
     // Parsing ident
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: ident\n");
+        printf("Missing Field in Package File: ident\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "ident:%1024s", obj->ident) != 1) {
-        perror("Invalid 'ident' in Package File\n");
+        printf("Invalid Field in Package File: ident\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
@@ -45,13 +42,13 @@ struct bpkg_obj *bpkg_load(const char *path) {
 
     // Parsing filename
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: filename\n");
+        printf("Missing Field in Package File: filename\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "filename:%256s", obj->filename) != 1) {
-        perror("Invalid 'filename' in Package File\n");
+        printf("Invalid Field in Package File: filename\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
@@ -59,13 +56,13 @@ struct bpkg_obj *bpkg_load(const char *path) {
 
     // Parsing size
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: size\n");
+        printf("Missing Field in Package File: size\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "size:%u", &(obj->size)) != 1) {
-        perror("Invalid 'size' in Package File\n");
+        printf("Invalid Field in Package File: size\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
@@ -73,20 +70,20 @@ struct bpkg_obj *bpkg_load(const char *path) {
 
     // Parsing nhashes
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: nhashes\n");
+        printf("Missing Field in Package File: nhashes\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "nhashes:%u", &(obj->nhashes)) != 1) {
-        perror("Invalid 'nhashes' in Package File\n");
+        printf("Invalid Field in Package File: nhashes\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
     }
 
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Invalid format in Package File: missing 'hashes:'\n");
+        printf("Invalid format in Package File: missing 'hashes:'\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
@@ -94,7 +91,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     char str_buf[FILENAME_MAX] = {0};
     if (sscanf(current_line, "%s", str_buf) != 1 || !strcmp(str_buf,
                                                             "hashes:\n")) {
-        perror("Invalid format in Package File: missing 'hashes:'\n");
+        printf("Invalid format in Package File: missing 'hashes:'\n");
         fclose(bpkg_file);
         free(obj);
         return NULL;
@@ -107,7 +104,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     char tab_buf = 0;
     for (int i = 0; i < obj->nhashes; ++i) {
         if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-            perror("Error Parsing Package File: hashes\n");
+            printf("Missing Field in Package File: hashes\n");
             fclose(bpkg_file);
             free_node_buf(all_nodes, obj->nhashes);
             free(obj);
@@ -115,7 +112,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
         }
         if (sscanf(current_line, "%1c%64c", &tab_buf, hash_buf) != 2 ||
         tab_buf != '\t') {
-            perror("Invalid 'hash' in Package File\n");
+            printf("Invalid Field in Package File: hashes\n");
             fclose(bpkg_file);
             free_node_buf(all_nodes, obj->nhashes);
             free(obj);
@@ -126,14 +123,14 @@ struct bpkg_obj *bpkg_load(const char *path) {
 
     // Parsing nchunks
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: nchunks\n");
+        printf("Missing Field in Package File: nchunks\n");
         fclose(bpkg_file);
         free_node_buf(all_nodes, obj->nhashes);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "nchunks:%u", &(obj->nchunks)) != 1) {
-        perror("Invalid 'nchunks' in Package File\n");
+        printf("Invalid Field in Package File: nchunks\n");
         fclose(bpkg_file);
         free_node_buf(all_nodes, obj->nhashes);
         free(obj);
@@ -141,14 +138,15 @@ struct bpkg_obj *bpkg_load(const char *path) {
     }
 
     if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-        perror("Error Parsing Package File: chunks\n");
+        printf("Invalid format in Package File: missing 'chunks:'\n");
         fclose(bpkg_file);
+        free_node_buf(all_nodes, obj->nhashes);
         free(obj);
         return NULL;
     }
     if (sscanf(current_line, "%s", str_buf) != 1 || !strcmp(str_buf,
                                                             "chunks:\n")) {
-        perror("Invalid format in Package File: missing 'chunks:'\n");
+        printf("Invalid format in Package File: missing 'chunks:'\n");
         fclose(bpkg_file);
         free_node_buf(all_nodes, obj->nhashes);
         free(obj);
@@ -158,12 +156,16 @@ struct bpkg_obj *bpkg_load(const char *path) {
     // Parsing leaf nodes into a buffer
     size_t num_nodes = obj->nhashes + obj->nchunks;
     size_t new_buf_size = num_nodes * sizeof(merkle_tree_node *);
+    // Reallocate a larger memory to include the leaf nodes
     all_nodes = realloc(all_nodes, new_buf_size);
+    for (size_t i = obj->nhashes; i < num_nodes; ++i) {
+        all_nodes[i] = NULL;
+    }
     uint32_t offset_buf = 0;
     uint32_t size_buf = 0;
     for (int i = 0; i < obj->nchunks; ++i) {
         if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
-            perror("Invalid 'chunk' in Package File\n");
+            printf("Invalid Field in Package File: chunks\n");
             fclose(bpkg_file);
             free_node_buf(all_nodes, num_nodes);
             free(obj);
@@ -171,7 +173,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
         }
         if (sscanf(current_line, "%1c%64c,%u,%u", &tab_buf, hash_buf,
                    &offset_buf, &size_buf) != 4 || tab_buf != '\t') {
-            perror("Invalid 'chunk' in Package File\n");
+            printf("Invalid Field in Package File: chunks\n");
             fclose(bpkg_file);
             free_node_buf(all_nodes, num_nodes);
             free(obj);
@@ -209,7 +211,9 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj *bpkg) {
         query.hashes[0] = calloc(strlen(message) + 1, sizeof(char));
         strcpy(query.hashes[0], message);
     } else {
-        fopen(bpkg->filename, "w");
+        FILE *new_file = fopen(bpkg->filename, "w");
+        // todo
+        fclose(new_file);
         char message[] = "File Created";
         query.hashes[0] = calloc(strlen(message) + 1, sizeof(char));
         strcpy(query.hashes[0], message);

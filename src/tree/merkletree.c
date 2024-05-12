@@ -24,18 +24,22 @@ merkle_tree_node *create_node(int key, chunk *value, char
 
 merkle_tree *create_tree(merkle_tree_node **nodes, uint32_t nhashes, uint32_t
 nchunks) {
-    // Linking all the nodes
-    for (size_t i = 0; i < nhashes; ++i) {
-        size_t left_index = 2 * i + 1;
-        size_t right_index = 2 * i + 2;
-        nodes[i]->left = nodes[left_index];
-        nodes[i]->right = nodes[right_index];
+    if (nodes == NULL) {
+        perror("Error Creating Tree\n");
+        return  NULL;
     }
-    struct merkle_tree *new_tree = calloc(1, sizeof(struct merkle_tree));
+
+    merkle_tree *new_tree = calloc(1, sizeof(merkle_tree));
     new_tree->root = nodes[0];
     new_tree->n_nodes = nhashes + nchunks;
     new_tree->nodes = nodes;
-
+    // Linking all the nodes
+    for (size_t i = 0; i < nhashes; ++i) {
+        size_t left_child = 2 * i + 1;
+        size_t right_child = 2 * i + 2;
+        nodes[i]->left = nodes[left_child];
+        nodes[i]->right = nodes[right_child];
+    }
     return new_tree;
 }
 
