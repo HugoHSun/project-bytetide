@@ -361,5 +361,3 @@ void bpkg_obj_destroy(struct bpkg_obj *obj) {
     }
     free(obj);
 }
-
-
