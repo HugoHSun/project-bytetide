@@ -15,7 +15,7 @@ merkle_tree_node *create_node(int key, chunk *value, char
 
     new_node->key = key;
     new_node->value = value;
-    strncpy(new_node->expected_hash, expected_hash, SHA256_HEXLEN);
+    strncpy(new_node->expected_hash, expected_hash, SHA256_HEX_STRLEN);
     new_node->left = NULL;
     new_node->right = NULL;
 
@@ -30,8 +30,9 @@ nchunks) {
     }
 
     merkle_tree *new_tree = calloc(1, sizeof(merkle_tree));
-    new_tree->root = nodes[0];
-    new_tree->n_nodes = nhashes + nchunks;
+    new_tree->num_nodes = nhashes + nchunks;
+    new_tree->num_inner_nodes = nhashes;
+    new_tree->num_leaves = nchunks;
     new_tree->nodes = nodes;
     // Linking all the nodes
     for (size_t i = 0; i < nhashes; ++i) {
@@ -55,11 +56,56 @@ void free_tree(merkle_tree *tree) {
         return;
     }
 
-    for (size_t i = 0; i < tree->n_nodes; ++i) {
+    for (size_t i = 0; i < tree->num_nodes; ++i) {
         if (tree->nodes[i] != NULL) {
             free_node(tree->nodes[i]);
         }
     }
     free(tree->nodes);
     free(tree);
+}
+
+void compute_leaf_hashes(merkle_tree *hashes, char *filename) {
+    FILE *data_file = fopen(filename, "rb");
+    if (data_file == NULL) {
+        printf("Failed to open the file\n");
+        fclose(data_file);
+        return;
+    }
+
+    for (size_t i = hashes->num_inner_nodes; i < hashes->num_nodes; ++i) {
+        merkle_tree_node *current_node = hashes->nodes[i];
+        chunk *current_chunk = current_node->value;
+
+        if (fseek(data_file, current_chunk->offset, SEEK_SET) != 0) {
+            printf("Failed to offset the file\n");
+            fclose(data_file);
+            return;
+        }
+        char *data_buf = calloc(current_chunk->size, sizeof(char));
+        fread(data_buf, sizeof(char), current_chunk->size, data_file);
+
+        // Compute the hash of the current chunk
+        struct sha256_compute_data c_data = {0};
+        uint8_t hash_out[SHA256_INT_SZ];
+        sha256_compute_data_init(&c_data);
+        sha256_update(&c_data, data_buf, current_chunk->size);
+        sha256_finalize(&c_data, hash_out);
+        sha256_output_hex(&c_data, current_node->computed_hash);
+
+        free(data_buf);
+    }
+
+    fclose(data_file);
+}
+
+int compare_node_hash(merkle_tree_node *node) {
+    if (node == NULL) {
+        return 0;
+    }
+
+    if (strcmp(node->expected_hash, node->computed_hash) == 0) {
+        return 1;
+    }
+    return 0;
 }

@@ -1,5 +1,8 @@
 #include "chk/pkgchk.h"
 
+#define FILE_EXIST_MESSAGE "File Exists"
+#define FILE_CREATED_MESSAGE "File Created"
+
 void free_node_buf(merkle_tree_node **buf, uint32_t size) {
     if (buf == NULL) {
         return;
@@ -100,7 +103,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     // Parsing non-leaf nodes into a buffer
     merkle_tree_node **all_nodes = calloc(obj->nhashes, sizeof
             (merkle_tree_node *));
-    char hash_buf[SHA256_HEXLEN] = {0};
+    char hash_buf[SHA256_HEX_STRLEN] = {0};
     char tab_buf = 0;
     for (int i = 0; i < obj->nhashes; ++i) {
         if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
@@ -110,7 +113,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
             free(obj);
             return NULL;
         }
-        if (sscanf(current_line, "%1c%64c", &tab_buf, hash_buf) != 2 ||
+        if (sscanf(current_line, "%1c%64s", &tab_buf, hash_buf) != 2 ||
         tab_buf != '\t') {
             printf("Invalid Field in Package File: hashes\n");
             fclose(bpkg_file);
@@ -171,7 +174,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
             free(obj);
             return NULL;
         }
-        if (sscanf(current_line, "%1c%64c,%u,%u", &tab_buf, hash_buf,
+        if (sscanf(current_line, "%1c%64s,%u,%u", &tab_buf, hash_buf,
                    &offset_buf, &size_buf) != 4 || tab_buf != '\t') {
             printf("Invalid Field in Package File: chunks\n");
             fclose(bpkg_file);
@@ -207,16 +210,18 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj *bpkg) {
 
     query.hashes = calloc(1, sizeof(char *));
     if (fopen(bpkg->filename, "r") != NULL) {
-        char message[] = "File Exists";
-        query.hashes[0] = calloc(strlen(message) + 1, sizeof(char));
-        strcpy(query.hashes[0], message);
+        query.hashes[0] = calloc(strlen(FILE_EXIST_MESSAGE) + 1, sizeof(char));
+        strcpy(query.hashes[0], FILE_EXIST_MESSAGE);
     } else {
-        FILE *new_file = fopen(bpkg->filename, "w");
-        // todo
+        // Create a new file with specified byte size, initialised with NULLs
+        FILE *new_file = fopen(bpkg->filename, "wb");
+        char null_byte = 0;
+        for (size_t i = 0; i < bpkg->size; ++i) {
+            fwrite(&null_byte, sizeof(char), 1, new_file);
+        }
         fclose(new_file);
-        char message[] = "File Created";
-        query.hashes[0] = calloc(strlen(message) + 1, sizeof(char));
-        strcpy(query.hashes[0], message);
+        query.hashes[0] = calloc(strlen(FILE_CREATED_MESSAGE) + 1, sizeof(char));
+        strcpy(query.hashes[0], FILE_CREATED_MESSAGE);
     }
 
     return query;
@@ -229,15 +234,38 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj *bpkg) {
  * 		and the number of hashes that have been retrieved
  */
 struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj *bpkg) {
-    struct bpkg_query qry = {NULL, bpkg->hashes->n_nodes};
+    struct bpkg_query qry = {NULL, bpkg->hashes->num_nodes};
 
-    qry.hashes = calloc(bpkg->hashes->n_nodes, sizeof(char *));
-    for (int i = 0; i < bpkg->hashes->n_nodes; ++i) {
-        qry.hashes[i] = calloc(SHA256_HEXSTR_LEN, sizeof(char));
+    qry.hashes = calloc(bpkg->hashes->num_nodes, sizeof(char *));
+    for (size_t i = 0; i < bpkg->hashes->num_nodes; ++i) {
+        qry.hashes[i] = calloc(SHA256_HEX_STRLEN, sizeof(char));
         strcpy(qry.hashes[i], bpkg->hashes->nodes[i]->expected_hash);
     }
 
     return qry;
+}
+
+void compute_chunk_hashes(struct bpkg_obj *bpkg) {
+    struct bpkg_query file_query = bpkg_file_check(bpkg);
+    if (file_query.hashes == NULL) {
+        bpkg_query_destroy(&file_query);
+        return;
+    }
+
+    char *message = file_query.hashes[0];
+    // No hashes to compute if the file doesn't exist
+    if (strcmp(message, FILE_CREATED_MESSAGE) == 0) {
+        bpkg_query_destroy(&file_query);
+        return;
+    }
+    if (strcmp(message, FILE_EXIST_MESSAGE) != 0) {
+        bpkg_query_destroy(&file_query);
+        return;
+    }
+    bpkg_query_destroy(&file_query);
+
+    // Compute the hashes of the leaves
+    compute_leaf_hashes(bpkg->hashes, bpkg->filename);
 }
 
 /**
@@ -247,7 +275,23 @@ struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj *bpkg) {
  * 		and the number of hashes that have been retrieved
  */
 struct bpkg_query bpkg_get_completed_chunks(struct bpkg_obj *bpkg) {
-    struct bpkg_query qry = {0};
+    compute_chunk_hashes(bpkg);
+
+    size_t qry_size = 0;
+    struct bpkg_query qry = {NULL, qry_size};
+    qry.hashes = calloc(qry_size, sizeof(char *));
+
+    merkle_tree *hashes = bpkg->hashes;
+    for (size_t i = hashes->num_inner_nodes; i < hashes->num_nodes; ++i) {
+        if (compare_node_hash(hashes->nodes[i])) {
+            qry_size++;
+            qry.hashes = realloc(qry.hashes, qry_size * sizeof(char *));
+            qry.hashes[qry_size - 1] = calloc(SHA256_HEX_STRLEN, sizeof(char));
+            strcpy(qry.hashes[qry_size - 1], hashes->nodes[i]->expected_hash);
+        }
+    }
+
+    qry.len = qry_size;
     return qry;
 }
 

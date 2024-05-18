@@ -1,6 +1,5 @@
 #include <crypt/sha256.h>
 #include <string.h>
-#include <stdio.h>
 
 #define SHA256K 64
 #define rotate_r(val, bits) (val >> bits | val << (32 - bits))
