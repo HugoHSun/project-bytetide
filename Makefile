@@ -5,7 +5,7 @@ INCLUDE=-Iinclude
 
 .PHONY: clean
 
-all: package_main
+all: pkgmain
 
 # Required for Part 1 - Make sure it outputs a .o file
 # to either objs/ or ./
@@ -19,7 +19,7 @@ merkletree.o: src/tree/merkletree.c
 pkgchk.o: src/chk/pkgchk.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
-package_main: src/pkgmain.c pkgchk.o merkletree.o sha256.o
+pkgmain: src/pkgmain.c pkgchk.o merkletree.o sha256.o
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
 # Required for Part 2 - Make sure it outputs `btide` file
@@ -43,6 +43,6 @@ p2tests:
 	bash p2test.sh
 
 clean:
-	rm -f *.o package_main
+	rm -f *.o pkgmain
     
 
