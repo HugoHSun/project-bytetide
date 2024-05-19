@@ -33,6 +33,8 @@ nchunks) {
     new_tree->num_nodes = nhashes + nchunks;
     new_tree->num_inner_nodes = nhashes;
     new_tree->num_leaves = nchunks;
+    // Number of nodes at depth d: 2^d, given root node is depth 0
+    new_tree->max_depth = (size_t) (log2(nchunks));
     new_tree->nodes = nodes;
     // Linking all the nodes
     for (size_t i = 0; i < nhashes; ++i) {
@@ -99,6 +101,26 @@ void compute_leaf_hashes(merkle_tree *hashes, char *filename) {
     fclose(data_file);
 }
 
+void compute_inner_hashes(merkle_tree  *hashes, char *filename) {
+    for (size_t i = hashes->num_inner_nodes; i > 0; --i) {
+        merkle_tree_node *current_node = hashes->nodes[i - 1];
+
+        // Concatenate the computed hashes of two children without null
+        // terminator
+        char *data_buf = calloc(2 * SHA256_HEX_LEN, sizeof(char));
+        strncpy(data_buf, current_node->left->computed_hash, SHA256_HEX_LEN);
+        strncat(data_buf, current_node->right->computed_hash, SHA256_HEX_LEN);
+
+        // Compute the hash of the current node
+        struct sha256_compute_data c_data = {0};
+        uint8_t hash_out[SHA256_INT_SZ];
+        sha256_compute_data_init(&c_data);
+        sha256_update(&c_data, data_buf, 2 * SHA256_HEX_LEN);
+        sha256_finalize(&c_data, hash_out);
+        sha256_output_hex(&c_data, current_node->computed_hash);
+    }
+}
+
 int compare_node_hash(merkle_tree_node *node) {
     if (node == NULL) {
         return 0;
@@ -108,4 +130,50 @@ int compare_node_hash(merkle_tree_node *node) {
         return 1;
     }
     return 0;
+}
+
+char **get_all_leaf_hashes_from_node(merkle_tree *hashes, merkle_tree_node
+*node) {
+    // Root node
+    if (node->key == 0) {
+        // NULL at the end to signal end of leaf hashes
+        char **leaf_hashes = calloc(hashes->num_leaves + 1, sizeof(char *));
+        for (size_t i = hashes->num_inner_nodes; i < hashes->num_nodes; ++i) {
+            leaf_hashes[i - hashes->num_inner_nodes] = calloc
+                    (SHA256_HEX_STRLEN, sizeof(char));
+            strcpy(leaf_hashes[i - hashes->num_inner_nodes],
+                   hashes->nodes[i]->expected_hash);
+        }
+        return leaf_hashes;
+    }
+
+    // Total number of nodes given depth d: 2^(d+1) - 1, given root node is
+    // depth 0
+    int node_depth = 1;
+    int node_depth_offset = 0;
+    // Calculates the depth of the node
+    for (int d = 1; d < hashes->max_depth; ++d) {
+        int max_index_at_d = (int) pow(2, (d+1)) - 1 - 1;
+        if (node->key <= max_index_at_d) {
+            node_depth = d;
+            // The offset of the node at depth d
+            node_depth_offset =  node->key - ((int) pow(2, d) - 1);
+            break;
+        }
+    }
+
+    // Calculates the leaf indices of subtree with the selected node as root
+    size_t subtree_num_leaves = (size_t)pow(2, ((int)hashes->max_depth -
+    node_depth));
+    size_t left_index = hashes->num_inner_nodes + (node_depth_offset *
+            subtree_num_leaves);
+    size_t right_index = hashes->num_inner_nodes + ((node_depth_offset + 1) *
+            subtree_num_leaves);
+    // NULL at the end to signal end of leaf hashes
+    char **leaf_hashes = calloc(subtree_num_leaves + 1, sizeof(char *));
+    for (size_t i = left_index; i < right_index; ++i) {
+        leaf_hashes[i - left_index] = calloc(SHA256_HEX_STRLEN, sizeof(char));
+        strcpy(leaf_hashes[i - left_index],hashes->nodes[i]->expected_hash);
+    }
+    return leaf_hashes;
 }

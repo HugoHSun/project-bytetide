@@ -193,6 +193,15 @@ struct bpkg_obj *bpkg_load(const char *path) {
     return obj;
 }
 
+int check_file_existence(char *filename) {
+    FILE * fp = fopen(filename, "r");
+    if (fp != NULL) {
+        fclose(fp);
+        return 1;
+    }
+    return 0;
+}
+
 /**
  * Checks to see if the referenced filename in the bpkg file
  * exists or not.
@@ -209,7 +218,7 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj *bpkg) {
     }
 
     query.hashes = calloc(1, sizeof(char *));
-    if (fopen(bpkg->filename, "r") != NULL) {
+    if (check_file_existence(bpkg->filename)) {
         query.hashes[0] = calloc(strlen(FILE_EXIST_MESSAGE) + 1, sizeof(char));
         strcpy(query.hashes[0], FILE_EXIST_MESSAGE);
     } else {
@@ -245,27 +254,19 @@ struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj *bpkg) {
     return qry;
 }
 
-void compute_chunk_hashes(struct bpkg_obj *bpkg) {
-    struct bpkg_query file_query = bpkg_file_check(bpkg);
-    if (file_query.hashes == NULL) {
-        bpkg_query_destroy(&file_query);
-        return;
+int compute_chunk_hashes(struct bpkg_obj *bpkg) {
+    if (bpkg == NULL) {
+        return 0;
     }
 
-    char *message = file_query.hashes[0];
     // No hashes to compute if the file doesn't exist
-    if (strcmp(message, FILE_CREATED_MESSAGE) == 0) {
-        bpkg_query_destroy(&file_query);
-        return;
+    if (check_file_existence(bpkg->filename) == 0) {
+        return 0;
     }
-    if (strcmp(message, FILE_EXIST_MESSAGE) != 0) {
-        bpkg_query_destroy(&file_query);
-        return;
-    }
-    bpkg_query_destroy(&file_query);
 
     // Compute the hashes of the leaves
     compute_leaf_hashes(bpkg->hashes, bpkg->filename);
+    return 1;
 }
 
 /**
@@ -275,12 +276,14 @@ void compute_chunk_hashes(struct bpkg_obj *bpkg) {
  * 		and the number of hashes that have been retrieved
  */
 struct bpkg_query bpkg_get_completed_chunks(struct bpkg_obj *bpkg) {
-    compute_chunk_hashes(bpkg);
+    struct bpkg_query qry = {0};
+    // The file doesn't exist hence no completed chunks
+    if (compute_chunk_hashes(bpkg) == 0) {
+        return qry;
+    }
 
     size_t qry_size = 0;
-    struct bpkg_query qry = {NULL, qry_size};
     qry.hashes = calloc(qry_size, sizeof(char *));
-
     merkle_tree *hashes = bpkg->hashes;
     for (size_t i = hashes->num_inner_nodes; i < hashes->num_nodes; ++i) {
         if (compare_node_hash(hashes->nodes[i])) {
@@ -295,6 +298,15 @@ struct bpkg_query bpkg_get_completed_chunks(struct bpkg_obj *bpkg) {
     return qry;
 }
 
+void compute_all_hashes(struct bpkg_obj *bpkg) {
+    // No need to compute inner hashes when no leaf hashes are computed
+    if (compute_chunk_hashes(bpkg) == 0) {
+        return;
+    }
+
+    // Compute the hashes of the inner nodes
+    compute_inner_hashes(bpkg->hashes, bpkg->filename);
+}
 
 /**
  * Gets only the required/min hashes to represent the current completion state
@@ -324,8 +336,40 @@ struct bpkg_query bpkg_get_min_completed_hashes(struct bpkg_obj *bpkg) {
  */
 struct bpkg_query bpkg_get_all_chunk_hashes_from_hash(struct bpkg_obj *bpkg,
                                                       char *hash) {
-
     struct bpkg_query qry = {0};
+
+    merkle_tree *hashes = bpkg->hashes;
+    merkle_tree_node *current_node = NULL;
+    for (size_t i = 0; i < hashes->num_nodes; ++i) {
+        current_node = hashes->nodes[i];
+        if (strncmp(current_node->expected_hash, hash, SHA256_HEX_LEN) == 0) {
+            break;
+        }
+    }
+    // The given hash is not in the merkle tree
+    if (current_node == NULL) {
+        return qry;
+    }
+
+    // Get all leaf hashes, with NULL at the end of the array
+    char** leaf_hashes = get_all_leaf_hashes_from_node(hashes, current_node);
+    size_t qry_size = 0;
+    qry.hashes = calloc(qry_size, sizeof(char *));
+    while (leaf_hashes[qry_size] != NULL) {
+        qry_size++;
+        qry.hashes = realloc(qry.hashes, qry_size * sizeof(char *));
+        qry.hashes[qry_size - 1] = calloc(SHA256_HEX_STRLEN, sizeof(char));
+        strcpy(qry.hashes[qry_size - 1], leaf_hashes[qry_size - 1]);
+    }
+    qry.len = qry_size;
+    // Free the memory of leaf_hashes
+    for (size_t i = 0; i < qry_size; ++i) {
+        if (leaf_hashes[i] != NULL) {
+            free(leaf_hashes[i]);
+        }
+    }
+    free(leaf_hashes);
+
     return qry;
 }
 

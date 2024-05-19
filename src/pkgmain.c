@@ -3,9 +3,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define SHA256_HEX_LEN (64)
-
-
 int arg_select(int argc, char **argv, int *asel, char *harg) {
 
 

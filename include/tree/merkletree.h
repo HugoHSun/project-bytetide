@@ -5,10 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 
 #include "crypt/sha256.h"
 
-#define SHA256_HEX_STRLEN (SHA256_CHUNK_SZ + 1)
+#define SHA256_HEX_LEN 64
+#define SHA256_HEX_STRLEN (SHA256_HEX_LEN + 1)
 
 typedef struct chunk {
     uint32_t offset;
@@ -28,6 +30,7 @@ typedef struct merkle_tree {
     size_t num_nodes;
     size_t num_inner_nodes;
     size_t num_leaves;
+    size_t max_depth;
     merkle_tree_node **nodes;
 } merkle_tree;
 
@@ -45,6 +48,11 @@ void free_tree(merkle_tree *tree);
 
 void compute_leaf_hashes(merkle_tree  *hashes, char *filename);
 
+void compute_inner_hashes(merkle_tree  *hashes, char *filename);
+
 int compare_node_hash(merkle_tree_node *node);
+
+char **get_all_leaf_hashes_from_node(merkle_tree *hashes, merkle_tree_node
+*node);
 
 #endif
