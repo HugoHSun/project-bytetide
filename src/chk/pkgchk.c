@@ -349,6 +349,13 @@ struct bpkg_query bpkg_get_all_chunk_hashes_from_hash(struct bpkg_obj *bpkg,
     // The given hash is not in the merkle tree
     if (current_node == NULL) {
         return qry;
+        // The given hash is a leaf node
+    } else if (current_node->value != NULL) {
+        qry.len = 1;
+        qry.hashes = calloc(qry.len, sizeof(char *));
+        qry.hashes[0] = calloc(SHA256_HEX_STRLEN, sizeof(char));
+        strncpy(qry.hashes[0], hash, SHA256_HEX_LEN);
+        return qry;
     }
 
     // Get all leaf hashes, with NULL at the end of the array

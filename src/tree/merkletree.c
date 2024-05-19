@@ -152,7 +152,7 @@ char **get_all_leaf_hashes_from_node(merkle_tree *hashes, merkle_tree_node
     int node_depth = 1;
     int node_depth_offset = 0;
     // Calculates the depth of the node
-    for (int d = 1; d < hashes->max_depth; ++d) {
+    for (int d = 1; d <= hashes->max_depth; ++d) {
         int max_index_at_d = (int) pow(2, (d+1)) - 1 - 1;
         if (node->key <= max_index_at_d) {
             node_depth = d;
