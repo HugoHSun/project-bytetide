@@ -109,7 +109,10 @@ void compute_inner_hashes(merkle_tree  *hashes) {
         // terminator
         char *data_buf = calloc(2 * SHA256_HEX_LEN, sizeof(char));
         strncpy(data_buf, current_node->left->computed_hash, SHA256_HEX_LEN);
-        memcpy(data_buf, current_node->right->computed_hash, SHA256_HEX_LEN);
+        for (size_t j = SHA256_HEX_LEN; j < 2 * SHA256_HEX_LEN; ++j) {
+            data_buf[j] = current_node->right->computed_hash[j -
+                                                             SHA256_HEX_LEN];
+        }
 
         // Compute the hash of the current node
         struct sha256_compute_data c_data = {0};
