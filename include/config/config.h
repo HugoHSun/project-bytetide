@@ -12,6 +12,7 @@
 #define MAX_PEER_NUM 2048
 #define MIN_PORT_NUM 1025
 #define MAX_PORT_NUM 65535
+
 // Error codes
 #define INVALID_CONFIG 1
 #define INVALID_FIELD 2

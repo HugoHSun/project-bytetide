@@ -4,8 +4,8 @@
 #include "tree/merkletree.h"
 
 // Have extra byte for the null terminator
-#define IDENT_MAX_SIZE 1025
-#define FILENAME_MAX_SIZE 257
+#define MAX_IDENT_SIZE 1025
+#define MAX_FILENAME_SIZE 257
 #define MAX_BPKG_LINE_SIZE 1048
 
 /**
@@ -21,8 +21,8 @@ struct bpkg_query {
 };
 
 struct bpkg_obj {
-    char ident[IDENT_MAX_SIZE];
-    char filename[FILENAME_MAX_SIZE];
+    char ident[MAX_IDENT_SIZE];
+    char filename[MAX_FILENAME_SIZE];
     uint32_t size;
     uint32_t nhashes;
     uint32_t nchunks;
