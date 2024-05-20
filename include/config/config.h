@@ -1,0 +1,8 @@
+//
+// Created by haors on 20/05/2024.
+//
+
+#ifndef PROJECT_BYTETIDE_CONFIG_H
+#define PROJECT_BYTETIDE_CONFIG_H
+
+#endif //PROJECT_BYTETIDE_CONFIG_H
