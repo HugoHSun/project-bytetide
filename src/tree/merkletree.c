@@ -101,7 +101,7 @@ void compute_leaf_hashes(merkle_tree *hashes, char *filename) {
     fclose(data_file);
 }
 
-void compute_inner_hashes(merkle_tree  *hashes, char *filename) {
+void compute_inner_hashes(merkle_tree  *hashes) {
     for (size_t i = hashes->num_inner_nodes; i > 0; --i) {
         merkle_tree_node *current_node = hashes->nodes[i - 1];
 
@@ -109,7 +109,7 @@ void compute_inner_hashes(merkle_tree  *hashes, char *filename) {
         // terminator
         char *data_buf = calloc(2 * SHA256_HEX_LEN, sizeof(char));
         strncpy(data_buf, current_node->left->computed_hash, SHA256_HEX_LEN);
-        strncat(data_buf, current_node->right->computed_hash, SHA256_HEX_LEN);
+        memcpy(data_buf, current_node->right->computed_hash, SHA256_HEX_LEN);
 
         // Compute the hash of the current node
         struct sha256_compute_data c_data = {0};
@@ -118,6 +118,8 @@ void compute_inner_hashes(merkle_tree  *hashes, char *filename) {
         sha256_update(&c_data, data_buf, 2 * SHA256_HEX_LEN);
         sha256_finalize(&c_data, hash_out);
         sha256_output_hex(&c_data, current_node->computed_hash);
+
+        free(data_buf);
     }
 }
 
@@ -176,4 +178,30 @@ char **get_all_leaf_hashes_from_node(merkle_tree *hashes, merkle_tree_node
         strcpy(leaf_hashes[i - left_index],hashes->nodes[i]->expected_hash);
     }
     return leaf_hashes;
+}
+
+int check_child_from_node(int parent_key, int child_key) {
+    // Not possible that child key is smaller than parent key
+    if (child_key < parent_key) {
+        return 0;
+    }
+    // Same node
+    if (child_key == parent_key) {
+        return 1;
+    }
+
+    // Relative depth from parent to child
+    int rel_d = 1;
+    // Left and right indices for the subtree starting from parent node
+    int left_index = ((int)pow(2, rel_d) * (parent_key + 1)) - 1;
+    int right_index = ((int)pow(2, rel_d) * (parent_key + 2)) - 2;
+    while (child_key >= left_index) {
+        if (child_key <= right_index) {
+            return 1;
+        }
+        rel_d++;
+        left_index = ((int)pow(2, rel_d) * (parent_key + 1)) - 1;
+        right_index = ((int)pow(2, rel_d) * (parent_key + 2)) - 2;
+    }
+    return 0;
 }

@@ -48,11 +48,13 @@ void free_tree(merkle_tree *tree);
 
 void compute_leaf_hashes(merkle_tree  *hashes, char *filename);
 
-void compute_inner_hashes(merkle_tree  *hashes, char *filename);
+void compute_inner_hashes(merkle_tree  *hashes);
 
 int compare_node_hash(merkle_tree_node *node);
 
 char **get_all_leaf_hashes_from_node(merkle_tree *hashes, merkle_tree_node
 *node);
+
+int check_child_from_node(int parent_key, int child_key);
 
 #endif

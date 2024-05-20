@@ -305,7 +305,7 @@ void compute_all_hashes(struct bpkg_obj *bpkg) {
     }
 
     // Compute the hashes of the inner nodes
-    compute_inner_hashes(bpkg->hashes, bpkg->filename);
+    compute_inner_hashes(bpkg->hashes);
 }
 
 /**
@@ -319,6 +319,47 @@ void compute_all_hashes(struct bpkg_obj *bpkg) {
  */
 struct bpkg_query bpkg_get_min_completed_hashes(struct bpkg_obj *bpkg) {
     struct bpkg_query qry = {0};
+    compute_all_hashes(bpkg);
+    merkle_tree *hashes = bpkg->hashes;
+
+    // The root node is complete
+    if (compare_node_hash(hashes->nodes[0])) {
+        qry.len = 1;
+        qry.hashes = calloc(qry.len, sizeof(char *));
+        qry.hashes[0] = calloc(SHA256_HEX_STRLEN, sizeof(char));
+        strcpy(qry.hashes[0], hashes->nodes[0]->expected_hash);
+        return qry;
+    }
+
+    size_t qry_size = 0;
+    qry.hashes = calloc(qry_size, sizeof(char *));
+    int *added_keys = calloc(qry_size, sizeof(int));
+    int add = 1;
+    // BFS on every node
+    for (size_t i = 1 ; i < hashes->num_nodes; ++i) {
+        merkle_tree_node *current_node = hashes->nodes[i];
+        if (compare_node_hash(current_node)) {
+            // Check if the node is a descent of any existing hashes
+            for (size_t j = 0;  j < qry_size; ++j) {
+                add = check_child_from_node(added_keys[j], current_node->key);
+                if (!add) {
+                    break;
+                }
+            }
+            if (add) {
+                qry_size++;
+                qry.hashes = realloc(qry.hashes, qry_size * sizeof(char *));
+                qry.hashes[qry_size - 1] = calloc(SHA256_HEX_STRLEN, sizeof(char));
+                strcpy(qry.hashes[qry_size - 1], current_node->expected_hash);
+
+                added_keys = realloc(added_keys, qry_size * sizeof(int));
+                added_keys[qry_size - 1] = current_node->key;
+            }
+        }
+    }
+
+    free(added_keys);
+    qry.len = qry_size;
     return qry;
 }
 
