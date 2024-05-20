@@ -6,7 +6,7 @@
 // Have extra byte for the null terminator
 #define IDENT_MAX_SIZE 1025
 #define FILENAME_MAX_SIZE 257
-#define MAX_LINE_SIZE 1048
+#define MAX_BPKG_LINE_SIZE 1048
 
 /**
  * Query object, allows you to assign

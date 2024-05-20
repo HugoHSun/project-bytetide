@@ -27,10 +27,10 @@ struct bpkg_obj *bpkg_load(const char *path) {
     }
 
     struct bpkg_obj *obj = calloc(1, sizeof(struct bpkg_obj));
-    char current_line[MAX_LINE_SIZE] = {0};
+    char current_line[MAX_BPKG_LINE_SIZE] = {0};
 
     // Parsing ident
-    if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
         printf("Missing Field in Package File: ident\n");
         fclose(bpkg_file);
         free(obj);
@@ -44,7 +44,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     }
 
     // Parsing filename
-    if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
         printf("Missing Field in Package File: filename\n");
         fclose(bpkg_file);
         free(obj);
@@ -58,7 +58,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     }
 
     // Parsing size
-    if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
         printf("Missing Field in Package File: size\n");
         fclose(bpkg_file);
         free(obj);
@@ -72,7 +72,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     }
 
     // Parsing nhashes
-    if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
         printf("Missing Field in Package File: nhashes\n");
         fclose(bpkg_file);
         free(obj);
@@ -85,7 +85,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
         return NULL;
     }
 
-    if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
         printf("Invalid format in Package File: missing 'hashes:'\n");
         fclose(bpkg_file);
         free(obj);
@@ -106,7 +106,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     char hash_buf[SHA256_HEX_STRLEN] = {0};
     char tab_buf = 0;
     for (int i = 0; i < obj->nhashes; ++i) {
-        if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
+        if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
             printf("Missing Field in Package File: hashes\n");
             fclose(bpkg_file);
             free_node_buf(all_nodes, obj->nhashes);
@@ -125,7 +125,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     }
 
     // Parsing nchunks
-    if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
         printf("Missing Field in Package File: nchunks\n");
         fclose(bpkg_file);
         free_node_buf(all_nodes, obj->nhashes);
@@ -140,7 +140,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
         return NULL;
     }
 
-    if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
         printf("Invalid format in Package File: missing 'chunks:'\n");
         fclose(bpkg_file);
         free_node_buf(all_nodes, obj->nhashes);
@@ -167,7 +167,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     uint32_t offset_buf = 0;
     uint32_t size_buf = 0;
     for (int i = 0; i < obj->nchunks; ++i) {
-        if (fgets(current_line, MAX_LINE_SIZE, bpkg_file) == NULL) {
+        if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
             printf("Invalid Field in Package File: chunks\n");
             fclose(bpkg_file);
             free_node_buf(all_nodes, num_nodes);

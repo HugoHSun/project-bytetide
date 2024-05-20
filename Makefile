@@ -5,7 +5,7 @@ INCLUDE=-Iinclude
 
 .PHONY: clean
 
-all: pkgmain
+all: pkgmain btide
 
 # Required for Part 1 - Make sure it outputs a .o file
 # to either objs/ or ./
@@ -24,7 +24,10 @@ pkgmain: src/pkgmain.c pkgchk.o merkletree.o sha256.o
 
 # Required for Part 2 - Make sure it outputs `btide` file
 # in your directory ./
-btide: src/btide.c
+config.o: src/config.c
+	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
+
+btide: src/btide.c config.o
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
 # Alter your build for p1 tests to build unit-tests for your
@@ -43,6 +46,7 @@ p2tests:
 	bash p2test.sh
 
 clean:
-	rm -f *.o pkgmain
+	rm -f *.o pkgmain btide
+	rm -r tests
     
 
