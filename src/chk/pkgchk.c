@@ -334,15 +334,15 @@ struct bpkg_query bpkg_get_min_completed_hashes(struct bpkg_obj *bpkg) {
     size_t qry_size = 0;
     qry.hashes = calloc(qry_size, sizeof(char *));
     int *added_keys = calloc(qry_size, sizeof(int));
-    int add = 1;
     // BFS on every node
     for (size_t i = 1 ; i < hashes->num_nodes; ++i) {
         merkle_tree_node *current_node = hashes->nodes[i];
         if (compare_node_hash(current_node)) {
             // Check if the node is a descent of any existing hashes
+            int add = 1;
             for (size_t j = 0;  j < qry_size; ++j) {
-                add = check_child_from_node(added_keys[j], current_node->key);
-                if (!add) {
+                if (check_child_from_node(added_keys[j], current_node->key)) {
+                    add = 0;
                     break;
                 }
             }
