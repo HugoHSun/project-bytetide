@@ -27,7 +27,10 @@ pkgmain: src/pkgmain.c pkgchk.o merkletree.o sha256.o
 config.o: src/config.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
-btide: src/btide.c config.o
+peer.o: src/peer.c
+	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
+
+btide: src/btide.c peer.o config.o
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
 # Alter your build for p1 tests to build unit-tests for your

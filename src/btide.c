@@ -1,7 +1,6 @@
-#include <stdlib.h>
 #include <string.h>
 
-#include "config/config.h"
+#include "p2p/peer.h"
 
 #define MAX_BTIDE_LINE_SIZE 5521
 #define MAX_COMMAND_SIZE 16
@@ -15,7 +14,15 @@ int main(int argc, char **argv) {
     struct config config = {0};
     int result = parse_config(argv[1], &config);
     if (result != 0) {
+        printf("btide: Failed to read configuration\n");
         return result;
+    }
+
+    // Start the server in a new thread
+    pthread_t server_thread;
+    if (pthread_create(&server_thread, NULL, start_server, &config) != 0) {
+        printf("btide: Failed to start server\n");
+        return -1;
     }
 
     // Command line interface
