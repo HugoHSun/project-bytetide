@@ -27,7 +27,7 @@ struct client_args *create_client_args(char *ip, uint16_t port) {
 int setup_server_socket(u_int16_t port) {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == -1) {
-        printf("Server: Failed to create socket\n");
+        perror("Server: Failed to create socket");
         pthread_exit((void *) -1);
     }
 
@@ -118,9 +118,10 @@ void *start_server(void *args) {
 }
 
 void *start_client(void *args) {
-    struct sockaddr_in server_addr = {0};
+    // Retrieve arguments
+    struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = ((struct client_args *) args)->port;
+    server_addr.sin_port = htons(((struct client_args *) args)->port);
     if (inet_pton(AF_INET, ((struct client_args *) args)->ip, &server_addr.sin_addr) <= 0) {
         printf("Invalid IP address: %s\n", ((struct client_args *) args)->ip);
         free(args);
@@ -135,7 +136,6 @@ void *start_client(void *args) {
         pthread_exit((void *) -1);
     }
 
-    printf("FD: %hu\n", client_fd);
     // Connect to the server
     if (connect(client_fd, (struct sockaddr *) &server_addr, sizeof
             (server_addr)) == -1) {

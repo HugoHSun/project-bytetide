@@ -194,7 +194,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
  * Loads the package for when a valid path is given, with no error messages
  * printed
  */
-struct bpkg_obj *bpkg_load_no_message(const char *path) {
+struct bpkg_obj *bpkg_load_no_message(const char *path, char *directory) {
     FILE *bpkg_file = fopen(path, "r");
     if (bpkg_file == NULL) {
         return NULL;
@@ -215,6 +215,7 @@ struct bpkg_obj *bpkg_load_no_message(const char *path) {
         return NULL;
     }
 
+    strncpy(obj->directory, directory, MAX_DATA_DIRECTORY_SIZE);
     // Parsing filename
     if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
         fclose(bpkg_file);

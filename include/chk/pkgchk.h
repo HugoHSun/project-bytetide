@@ -8,6 +8,7 @@
 
 // Have extra byte for the null terminator
 #define MAX_IDENT_SIZE 1025
+#define MAX_DATA_DIRECTORY_SIZE 4097
 #define MAX_FILENAME_SIZE 257
 #define MAX_BPKG_LINE_SIZE 1048
 
@@ -25,6 +26,7 @@ struct bpkg_query {
 
 struct bpkg_obj {
     char ident[MAX_IDENT_SIZE];
+    char directory[MAX_DATA_DIRECTORY_SIZE];
     char filename[MAX_FILENAME_SIZE];
     uint32_t size;
     uint32_t nhashes;
@@ -41,7 +43,7 @@ struct bpkg_obj *bpkg_load(const char *path);
  * Loads the package for when a valid path is given, with no error messages
  * printed
  */
-struct bpkg_obj *bpkg_load_no_message(const char *path);
+struct bpkg_obj *bpkg_load_no_message(const char *path, char *directory);
 
 int check_file_existence(char *filename);
 

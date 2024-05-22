@@ -21,6 +21,7 @@
 #define INVALID_PORT_NUM 5
 
 struct config {
+    char directory[MAX_DIRECTORY_SIZE];
     int max_peers;
     u_int16_t port;
 };

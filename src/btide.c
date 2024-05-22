@@ -72,13 +72,14 @@ int main(int argc, char **argv) {
                 continue;
             }
 
-            printf("COMMAND: %s|| IP: %s|| PORT: %d||\n", command_buf,
-                   ip_buf, port_buf);
+            if (port_buf < MIN_PORT_NUM || port_buf > MAX_PORT_NUM) {
+                printf("Invalid port value\n");
+                continue;
+            }
 
             struct client_args *new_args = create_client_args(ip_buf, port_buf);
             pthread_t client_thread;
             pthread_create(&client_thread, NULL, start_client, new_args);
-
             continue;
         }
 
@@ -112,7 +113,8 @@ int main(int argc, char **argv) {
                 continue;
             }
 
-            struct bpkg_obj *package = bpkg_load_no_message(filename_buf);
+            struct bpkg_obj *package = bpkg_load_no_message(filename_buf,
+                    config.directory);
             if (package == NULL) {
                 printf("Unable to parse bpkg file\n");
                 continue;
