@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <errno.h>
 
 #include "p2p/peer.h"
 #include "p2p/package.h"
@@ -17,9 +18,20 @@ struct server_args {
     struct peer_list *peer_list;
 };
 
-struct client_args {
-    struct sockaddr_in server_addr;
+struct client_handler_args {
+    struct peer new_peer;
+    struct peer_list *peer_list;
 };
+
+struct client_args {
+    char ip[MAX_IP_SIZE];
+    uint16_t port;
+};
+
+struct client_handler_args *create_chandler_args(int peer_fd, char *peer_ip,
+        uint16_t peer_port, struct peer_list *peer_list);
+
+struct client_args *create_client_args(char *ip, uint16_t port);
 
 void *start_server(void *args);
 

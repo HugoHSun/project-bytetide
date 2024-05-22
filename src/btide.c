@@ -75,6 +75,10 @@ int main(int argc, char **argv) {
             printf("COMMAND: %s|| IP: %s|| PORT: %d||\n", command_buf,
                    ip_buf, port_buf);
 
+            struct client_args *new_args = create_client_args(ip_buf, port_buf);
+            pthread_t client_thread;
+            pthread_create(&client_thread, NULL, start_client, new_args);
+
             continue;
         }
 

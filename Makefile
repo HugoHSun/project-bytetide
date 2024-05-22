@@ -36,7 +36,10 @@ package.o: src/p2p/package.c
 p2p_node.o: src/p2p/p2p_node.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
-btide: src/btide.c config.o p2p_node.o peer.o package.o
+packet.o: src/net/packet.c
+	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
+
+btide: src/btide.c config.o p2p_node.o peer.o package.o packet.o pkgchk.o merkletree.o sha256.o
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
 # Alter your build for p1 tests to build unit-tests for your

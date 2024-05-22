@@ -2,8 +2,14 @@
 #define NETPKT_H
 
 #include <stdint.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <bits/types/struct_timeval.h>
+
+#include "p2p/peer.h"
 
 #define PAYLOAD_MAX (4092)
+#define PACKET_SIZE 4096
 #define IDENT_SIZE 1024
 #define CHUNK_HASH_SIZE 64
 #define MAX_DATA_SIZE 2998
@@ -43,5 +49,15 @@ struct btide_packet {
     union btide_payload pl;
 };
 
+/**
+ * Send ACP packet to peer
+ * @param peer
+ * @return 1 if successful sent ACP and received ACK in 3 seconds, 0 otherwise
+ */
+int send_ACP(struct peer peer);
+
+int get_packet_tm(struct btide_packet *packet_buf, int peer_fd);
+
+void packet_handler(struct btide_packet *packet_buf, struct peer peer);
 
 #endif
