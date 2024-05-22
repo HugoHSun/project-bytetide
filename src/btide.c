@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
         return result;
     }
 
+    // Peer and package management structure
     struct peer_list *peer_list = create_peer_list();
     struct package_list *package_list = create_package_list();
 
@@ -27,6 +28,7 @@ int main(int argc, char **argv) {
     if (pthread_create(&server_thread, NULL, start_server, &args) != 0) {
         printf("btide: Failed to start server\n");
         free_peer_list(peer_list);
+        free_package_list(package_list);
         return -1;
     }
 

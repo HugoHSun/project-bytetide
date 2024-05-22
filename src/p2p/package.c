@@ -53,7 +53,7 @@ void remove_package(struct package_list *list, char *pkg_ident) {
 }
 
 void print_package(struct bpkg_obj *package, int count) {
-    printf("%d. %.32s, %s%s : ", count, package->ident, package->directory,
+    printf("%d. %.32s, %s/%s : ", count, package->ident, package->directory,
     package->filename);
     if (bpkg_complete_check(package)) {
         printf("COMPLETED\n");
