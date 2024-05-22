@@ -101,8 +101,8 @@ int main(int argc, char **argv) {
         if (strncmp(command_buf, "ADDPACKAGE ", MAX_COMMAND_SIZE) == 0) {
             char space_buf = 0;
             char filename_buf[MAX_FILENAME_SIZE] = {0};
-            if (sscanf(current_line, "%15s%c%256c", command_buf, &space_buf,
-                       filename_buf) != 3 || space_buf != ' ') {
+            if (sscanf(current_line, "%15s%c%256[^\n]", command_buf,
+                       &space_buf, filename_buf) != 3 || space_buf != ' ') {
                 printf("Missing file argument\n");
                 continue;
             }
