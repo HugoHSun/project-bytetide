@@ -3,6 +3,9 @@
 
 #include "tree/merkletree.h"
 
+#define FILE_EXIST_MESSAGE "File Exists"
+#define FILE_CREATED_MESSAGE "File Created"
+
 // Have extra byte for the null terminator
 #define MAX_IDENT_SIZE 1025
 #define MAX_FILENAME_SIZE 257
@@ -35,6 +38,14 @@ struct bpkg_obj {
 struct bpkg_obj *bpkg_load(const char *path);
 
 /**
+ * Loads the package for when a valid path is given, with no error messages
+ * printed
+ */
+struct bpkg_obj *bpkg_load_no_message(const char *path);
+
+int check_file_existence(char *filename);
+
+/**
  * Checks to see if the referenced filename in the bpkg file
  * exists or not.
  * @param bpkg, constructed bpkg object
@@ -52,6 +63,11 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj *bpkg);
  * 		and the number of hashes that have been retrieved
  */
 struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj *bpkg);
+
+/**
+ * Check if a file is complete in the package
+ */
+int bpkg_complete_check(struct bpkg_obj *bpkg);
 
 /**
  * Retrieves all completed chunks of a package object

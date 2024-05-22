@@ -1,8 +1,5 @@
 #include "chk/pkgchk.h"
 
-#define FILE_EXIST_MESSAGE "File Exists"
-#define FILE_CREATED_MESSAGE "File Created"
-
 void free_node_buf(merkle_tree_node **buf, uint32_t size) {
     if (buf == NULL) {
         return;
@@ -193,6 +190,165 @@ struct bpkg_obj *bpkg_load(const char *path) {
     return obj;
 }
 
+/**
+ * Loads the package for when a valid path is given, with no error messages
+ * printed
+ */
+struct bpkg_obj *bpkg_load_no_message(const char *path) {
+    FILE *bpkg_file = fopen(path, "r");
+    if (bpkg_file == NULL) {
+        return NULL;
+    }
+
+    struct bpkg_obj *obj = calloc(1, sizeof(struct bpkg_obj));
+    char current_line[MAX_BPKG_LINE_SIZE] = {0};
+
+    // Parsing ident
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
+        fclose(bpkg_file);
+        free(obj);
+        return NULL;
+    }
+    if (sscanf(current_line, "ident:%1024s", obj->ident) != 1) {
+        fclose(bpkg_file);
+        free(obj);
+        return NULL;
+    }
+
+    // Parsing filename
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
+        fclose(bpkg_file);
+        free(obj);
+        return NULL;
+    }
+    if (sscanf(current_line, "filename:%256s", obj->filename) != 1) {
+        fclose(bpkg_file);
+        free(obj);
+        return NULL;
+    }
+
+    // Parsing size
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
+        fclose(bpkg_file);
+        free(obj);
+        return NULL;
+    }
+    if (sscanf(current_line, "size:%u", &(obj->size)) != 1) {
+        fclose(bpkg_file);
+        free(obj);
+        return NULL;
+    }
+
+    // Parsing nhashes
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
+        fclose(bpkg_file);
+        free(obj);
+        return NULL;
+    }
+    if (sscanf(current_line, "nhashes:%u", &(obj->nhashes)) != 1) {
+        fclose(bpkg_file);
+        free(obj);
+        return NULL;
+    }
+
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
+        fclose(bpkg_file);
+        free(obj);
+        return NULL;
+    }
+    char str_buf[FILENAME_MAX] = {0};
+    if (sscanf(current_line, "%s", str_buf) != 1 || !strcmp(str_buf,
+                                                            "hashes:\n")) {
+        fclose(bpkg_file);
+        free(obj);
+        return NULL;
+    }
+
+    // Parsing non-leaf nodes into a buffer
+    merkle_tree_node **all_nodes = calloc(obj->nhashes, sizeof
+            (merkle_tree_node *));
+    char hash_buf[SHA256_HEX_STRLEN] = {0};
+    char tab_buf = 0;
+    for (int i = 0; i < obj->nhashes; ++i) {
+        if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
+            fclose(bpkg_file);
+            free_node_buf(all_nodes, obj->nhashes);
+            free(obj);
+            return NULL;
+        }
+        if (sscanf(current_line, "%1c%64s", &tab_buf, hash_buf) != 2 ||
+            tab_buf != '\t') {
+            fclose(bpkg_file);
+            free_node_buf(all_nodes, obj->nhashes);
+            free(obj);
+            return NULL;
+        }
+        all_nodes[i] = create_node(i, NULL, hash_buf);
+    }
+
+    // Parsing nchunks
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
+        fclose(bpkg_file);
+        free_node_buf(all_nodes, obj->nhashes);
+        free(obj);
+        return NULL;
+    }
+    if (sscanf(current_line, "nchunks:%u", &(obj->nchunks)) != 1) {
+        fclose(bpkg_file);
+        free_node_buf(all_nodes, obj->nhashes);
+        free(obj);
+        return NULL;
+    }
+
+    if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
+        fclose(bpkg_file);
+        free_node_buf(all_nodes, obj->nhashes);
+        free(obj);
+        return NULL;
+    }
+    if (sscanf(current_line, "%s", str_buf) != 1 || !strcmp(str_buf,
+                                                            "chunks:\n")) {
+        fclose(bpkg_file);
+        free_node_buf(all_nodes, obj->nhashes);
+        free(obj);
+        return NULL;
+    }
+
+    // Parsing leaf nodes into a buffer
+    size_t num_nodes = obj->nhashes + obj->nchunks;
+    size_t new_buf_size = num_nodes * sizeof(merkle_tree_node *);
+    // Reallocate a larger memory to include the leaf nodes
+    all_nodes = realloc(all_nodes, new_buf_size);
+    for (size_t i = obj->nhashes; i < num_nodes; ++i) {
+        all_nodes[i] = NULL;
+    }
+    uint32_t offset_buf = 0;
+    uint32_t size_buf = 0;
+    for (int i = 0; i < obj->nchunks; ++i) {
+        if (fgets(current_line, MAX_BPKG_LINE_SIZE, bpkg_file) == NULL) {
+            fclose(bpkg_file);
+            free_node_buf(all_nodes, num_nodes);
+            free(obj);
+            return NULL;
+        }
+        if (sscanf(current_line, "%1c%64s,%u,%u", &tab_buf, hash_buf,
+                   &offset_buf, &size_buf) != 4 || tab_buf != '\t') {
+            fclose(bpkg_file);
+            free_node_buf(all_nodes, num_nodes);
+            free(obj);
+            return NULL;
+        }
+        int index = obj->nhashes + i;
+        chunk *new_chunk = create_chunk(offset_buf, size_buf);
+        all_nodes[index] = create_node(index, new_chunk, hash_buf);
+    }
+
+    merkle_tree *new_tree = create_tree(all_nodes, obj->nhashes, obj->nchunks);
+    obj->hashes = new_tree;
+    fclose(bpkg_file);
+    return obj;
+}
+
 int check_file_existence(char *filename) {
     FILE * fp = fopen(filename, "r");
     if (fp != NULL) {
@@ -266,6 +422,24 @@ int compute_chunk_hashes(struct bpkg_obj *bpkg) {
 
     // Compute the hashes of the leaves
     compute_leaf_hashes(bpkg->hashes, bpkg->filename);
+    return 1;
+}
+
+/**
+ * Check if a file is complete in the package
+ */
+int bpkg_complete_check(struct bpkg_obj *bpkg) {
+    if (compute_chunk_hashes(bpkg) == 0) {
+        return 0;
+    }
+
+    merkle_tree *hashes = bpkg->hashes;
+    for (size_t i = hashes->num_inner_nodes; i < hashes->num_nodes; ++i) {
+        if (!compare_node_hash(hashes->nodes[i])) {
+            return 0;
+        }
+    }
+
     return 1;
 }
 

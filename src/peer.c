@@ -1,76 +1,91 @@
 #include "p2p/peer.h"
 
-int setup_server_socket(u_int16_t port) {
-    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd == -1) {
-        printf("Server: Failed to create socket\n");
-        pthread_exit((void *) -1);
+struct peer_list *create_peer_list() {
+    int init_size = 8;
+    struct peer_list *new_list = calloc(1, sizeof(struct peer_list));
+    new_list->max_size = init_size;
+    new_list->num_peers = 0;
+    new_list->peers = calloc(init_size, sizeof(struct peer));
+
+    struct peer init_peer = {0};
+    init_peer.peer_fd = -1;
+    for (int i = 0; i < init_size; ++i) {
+        new_list->peers[i] = init_peer;
     }
 
-    struct sockaddr_in socket_addr;
-    socket_addr.sin_family = AF_INET;
-    socket_addr.sin_port = htons(port);
-    socket_addr.sin_addr.s_addr = INADDR_ANY;
-    if (bind(server_fd, (struct sockaddr *) &socket_addr, sizeof
-            (struct sockaddr_in)) == -1) {
-        printf("Server: Failed to bind\n");
-        close(server_fd);
-        pthread_exit((void *) -1);
-    }
-
-    return server_fd;
+    return new_list;
 }
 
-void *start_server(void *config) {
-    int server_fd = setup_server_socket(((struct config *) config)->port);
-    // Start listening on the port
-    if (listen(server_fd, ((struct config *) config)->max_peers) == -1) {
-        printf("Server: Failed to listen\n");
-        close(server_fd);
-        pthread_exit((void *) -1);
-    }
-    printf("Server Started on port: %d\n", ((struct
-    config *) config)->port);
+void add_peer(struct peer_list *list, struct peer new_peer) {
+    // Double the max size when capacity is almost reached
+    if ((list->max_size - 1) == list->num_peers) {
+        int old_size = list->max_size;
+        list->max_size *= 2;
+        list->peers = realloc(list->peers, list->max_size * sizeof(struct
+        peer));
 
-    while (1) {
-        int client_fd = 0;
-        struct sockaddr_in client_address = {0};
-        socklen_t addr_len = sizeof(client_address);
-        if ((client_fd = accept(server_fd, (struct sockaddr *)
-                &client_address, &addr_len)) == -1) {
-            printf("Server: Failed to accept new connection\n");
-            close(server_fd);
-            pthread_exit((void *) -1);
+        struct peer init_peer = {0};
+        init_peer.peer_fd = -1;
+        for (int i = old_size; i < list->max_size; ++i) {
+            list->peers[i] = init_peer;
         }
-
-        printf("Connected to Client: socket fd: %d, IP: %s, port: %d\n",
-               client_fd, inet_ntoa(client_address.sin_addr),
-               ntohs(client_address.sin_port));
     }
 
-    pthread_exit((void *) 0);
+    for (int i = 0; i < list->max_size; ++i) {
+        if (list->peers[i].peer_fd == -1) {
+            list->peers[i] = new_peer;
+            list->num_peers++;
+            return;
+        }
+    }
+
+    printf("peer.c: add_peer: ERROR\n");
 }
 
-void *start_client(void *args) {
-    struct sockaddr_in server_addr = ((struct client_args *) args)->server_addr;
-
-    // Set up client socket
-    int client_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (client_fd == -1) {
-        printf("Client: Failed to create socket\n");
-        pthread_exit((void *) -1);
+void remove_peer(struct peer_list *list, struct peer peer) {
+    for (int i = 0; i < list->max_size; ++i) {
+        struct peer current_peer = list->peers[i];
+        if (current_peer.peer_fd == peer.peer_fd && (strncmp(current_peer
+        .peer_ip, peer.peer_ip, MAX_IP_SIZE) == 0) && current_peer.peer_port ==
+        peer.peer_port) {
+            current_peer.peer_fd = -1;
+            list->num_peers--;
+            return;
+        }
     }
 
-    // Connect to the server
-    if (connect(client_fd, (struct sockaddr *) &server_addr, sizeof
-            (server_addr)) == -1) {
-        printf("Client: Failed to connect to server\n");
-        close(client_fd);
-        pthread_exit((void *) -1);
+    printf("Unknown peer, not connected\n");
+}
+
+void print_peer_list(struct peer_list *list) {
+    int print_count = 0;
+    for (int i = 0; i < list->max_size; ++i) {
+        struct peer current_peer = list->peers[i];
+        if (current_peer.peer_fd != -1) {
+            print_count++;
+            if (print_count == 1) {
+                printf("Connected to:\n\n");
+            }
+            printf("%d. %s:%hu\n", print_count, current_peer.peer_ip,
+                   current_peer.peer_port);
+        }
     }
 
-    printf("Connected to Server: IP: %s, port: %d\n", inet_ntoa
-    (server_addr.sin_addr), ntohs(server_addr.sin_port));
+    if (print_count == 0) {
+        printf("Not connected to any peers\n");
+    }
 
-    pthread_exit((void *) 0);
+    // Debug check
+    if (print_count != list->num_peers) {
+        printf("peer.c: Did not print all peers\n");
+    }
+}
+
+void free_peer_list(struct peer_list *list) {
+    if (list == NULL) {
+        return;
+    }
+
+    free(list->peers);
+    free(list);
 }

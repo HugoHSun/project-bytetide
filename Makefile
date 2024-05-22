@@ -30,7 +30,13 @@ config.o: src/config.c
 peer.o: src/peer.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
-btide: src/btide.c peer.o config.o
+package.o: src/package.c
+	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
+
+p2p_node.o: src/p2p_node.c
+	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
+
+btide: src/btide.c config.o p2p_node.o peer.o package.o
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
 # Alter your build for p1 tests to build unit-tests for your

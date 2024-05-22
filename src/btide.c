@@ -1,7 +1,5 @@
-#include <string.h>
-
-#include "chk/pkgchk.h"
-#include "p2p/peer.h"
+#include "config/config.h"
+#include "p2p/p2p_node.h"
 
 #define MAX_BTIDE_LINE_SIZE 5521
 #define MAX_COMMAND_SIZE 16
@@ -20,10 +18,15 @@ int main(int argc, char **argv) {
         return result;
     }
 
+    struct peer_list *peer_list = create_peer_list();
+    struct package_list *package_list = create_package_list();
+
     // Start the server in a new thread
+    struct server_args args = {config.max_peers, config.port, peer_list};
     pthread_t server_thread;
-    if (pthread_create(&server_thread, NULL, start_server, &config) != 0) {
+    if (pthread_create(&server_thread, NULL, start_server, &args) != 0) {
         printf("btide: Failed to start server\n");
+        free_peer_list(peer_list);
         return -1;
     }
 
@@ -36,18 +39,18 @@ int main(int argc, char **argv) {
         // Can have '\n' at the end
         if (strncmp(command_buf, "QUIT", MAX_COMMAND_SIZE) == 0 && (strlen
         (current_line) == 4 || strlen(current_line) == 5)) {
-            return 0;
+            break;
         }
 
         if (strncmp(command_buf, "PACKAGES", MAX_COMMAND_SIZE) == 0 && (strlen
         (current_line) == 8 || strlen(current_line) == 9)) {
-            printf("PACKAGES COMMAND\n");
+            print_package_list(package_list);
             continue;
         }
 
         if (strncmp(command_buf, "PEERS", MAX_COMMAND_SIZE) == 0 && (strlen
         (current_line) == 5 || strlen(current_line) == 6)) {
-            printf("PEERS COMMAND\n");
+            print_peer_list(peer_list);
             continue;
         }
 
@@ -93,14 +96,25 @@ int main(int argc, char **argv) {
 
         if (strncmp(command_buf, "ADDPACKAGE ", MAX_COMMAND_SIZE) == 0) {
             char space_buf = 0;
-            char filname_buf[MAX_FILENAME_SIZE] = {0};
+            char filename_buf[MAX_FILENAME_SIZE] = {0};
             if (sscanf(current_line, "%15s%c%256c", command_buf, &space_buf,
-                       filname_buf) != 3 || space_buf != ' ') {
+                       filename_buf) != 3 || space_buf != ' ') {
                 printf("Missing file argument\n");
                 continue;
             }
 
-            printf("ADDPACKAGE COMMAND Filename: %s\n", filname_buf);
+            if (!check_file_existence(filename_buf)) {
+                printf("Cannot open file\n");
+                continue;
+            }
+
+            struct bpkg_obj *package = bpkg_load_no_message(filename_buf);
+            if (package == NULL) {
+                printf("Unable to parse bpkg file\n");
+                continue;
+            }
+
+            add_package(package_list, package);
             continue;
         }
 
@@ -115,7 +129,7 @@ int main(int argc, char **argv) {
                 continue;
             }
 
-            printf("REMPACKAGE COMMAND\n");
+            remove_package(package_list, ident_buf);
             continue;
         }
 
@@ -147,4 +161,7 @@ int main(int argc, char **argv) {
 
         printf("Invalid Input\n");
     }
+
+    free_peer_list(peer_list);
+    free_package_list(package_list);
 }
