@@ -24,16 +24,16 @@ pkgmain: src/pkgmain.c pkgchk.o merkletree.o sha256.o
 
 # Required for Part 2 - Make sure it outputs `btide` file
 # in your directory ./
-config.o: src/config.c
+config.o: src/config/config.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
-peer.o: src/peer.c
+peer.o: src/p2p/peer.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
-package.o: src/package.c
+package.o: src/p2p/package.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
-p2p_node.o: src/p2p_node.c
+p2p_node.o: src/p2p/p2p_node.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
 btide: src/btide.c config.o p2p_node.o peer.o package.o

@@ -44,6 +44,7 @@ void remove_package(struct package_list *list, char *pkg_ident) {
             bpkg_obj_destroy(current_obj);
             list->packages[i] = NULL;
             list->num_packages--;
+            printf("Package has been removed\n");
             return;
         }
     }
