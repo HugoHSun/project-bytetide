@@ -90,5 +90,6 @@ void free_package_list(struct package_list *list) {
             bpkg_obj_destroy(list->packages[i]);
         }
     }
+    free(list->packages);
     free(list);
 }
