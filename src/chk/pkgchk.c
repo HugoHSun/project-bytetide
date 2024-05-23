@@ -416,13 +416,22 @@ int compute_chunk_hashes(struct bpkg_obj *bpkg) {
         return 0;
     }
 
+    char full_filename[MAX_FILENAME_SIZE + MAX_DATA_DIRECTORY_SIZE];
+    if (bpkg->directory[0] != '\0') {
+        strncpy(full_filename, bpkg->directory, MAX_DATA_DIRECTORY_SIZE);
+        strcat(full_filename, "/");
+        strncat(full_filename, bpkg->filename, MAX_FILENAME_SIZE);
+    } else {
+        strcpy(full_filename, bpkg->filename);
+    }
+
     // No hashes to compute if the file doesn't exist
-    if (check_file_existence(bpkg->filename) == 0) {
+    if (check_file_existence(full_filename) == 0) {
         return 0;
     }
 
     // Compute the hashes of the leaves
-    compute_leaf_hashes(bpkg->hashes, bpkg->filename);
+    compute_leaf_hashes(bpkg->hashes, full_filename);
     return 1;
 }
 
