@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
+#include <unistd.h>
 
 #include "crypt/sha256.h"
 

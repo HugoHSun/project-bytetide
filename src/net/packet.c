@@ -108,8 +108,6 @@ int send_REQ(union btide_payload *req, int peer_fd) {
         return 0;
     }
 
-    struct btide_packet response_packet = {0};
-    get_packet_tm(&response_packet, peer_fd);
     return 1;
 }
 
@@ -120,12 +118,7 @@ int send_RES(uint16_t err, union btide_payload *res, int peer_fd) {
         return 0;
     }
 
-    free(res);
     return 1;
-}
-
-int handle_RES(union btide_payload *res_buf, int peer_fd) {
-    return 0;
 }
 
 int send_PNG(int peer_fd) {

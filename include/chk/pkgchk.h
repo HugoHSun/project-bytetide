@@ -52,6 +52,9 @@ int check_file_existence(char *filename);
 int get_data(struct bpkg_obj *obj, char *hash, int size, uint32_t abs_offset, char
         *data_buf);
 
+int write_data(struct bpkg_obj *obj, int size, uint32_t abs_offset, char
+        *data_buf);
+
 /**
  * Checks to see if the referenced filename in the bpkg file
  * exists or not.

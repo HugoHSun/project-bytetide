@@ -88,14 +88,6 @@ int send_REQ(union btide_payload *req, int peer_fd);
 int send_RES(uint16_t err, union btide_payload *res, int peer_fd);
 
 /**
- * Handle RES
- * @param res_buf buffer for storing RES payload
- * @param peer_fd
- * @return 1 if success, 0 otherwise
- */
-int handle_RES(union btide_payload *res_buf, int peer_fd);
-
-/**
  * Send PNG and wait for POG with 3 seconds timeout
  * @param peer_fd
  * @return 1 if success, 0 otherwise

@@ -5,9 +5,9 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
     // Retrieve the data in the REQ packet
     uint32_t offset = packet_buf->pl.request.file_offset;
     uint16_t size = packet_buf->pl.request.data_len;
-    char hash_buf[SHA256_HEX_STRLEN];
+    char hash_buf[SHA256_HEX_STRLEN] = {0};
     strncpy(hash_buf, packet_buf->pl.request.chunk_hash, SHA256_HEX_LEN);
-    char ident_buf[MAX_IDENT_SIZE];
+    char ident_buf[MAX_IDENT_SIZE] = {0};
     strncpy(ident_buf, packet_buf->pl.request.ident, IDENT_SIZE);
 
     // Prepare RES to send back
@@ -70,8 +70,41 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
     return 1;
 }
 
-void p2p_handle_response() {
+void p2p_handle_response(struct btide_packet *packet_buf, struct package_list
+*package_list, int client_fd) {
+    // The peer does not have the data requested
+    if (packet_buf->error > 0) {
+        return;
+    }
 
+    // Retrieve the data in the RES packet
+    uint32_t offset = packet_buf->pl.response.file_offset;
+    uint16_t size = packet_buf->pl.response.data_len;
+    char data_buf[MAX_DATA_SIZE] = {0};
+    strncpy(data_buf, packet_buf->pl.response.data, size);
+    char hash_buf[SHA256_HEX_STRLEN] = {0};
+    strncpy(hash_buf, packet_buf->pl.request.chunk_hash, SHA256_HEX_LEN);
+    char ident_buf[MAX_IDENT_SIZE] = {0};
+    strncpy(ident_buf, packet_buf->pl.request.ident, IDENT_SIZE);
+
+    // Locate the package and file
+    int package_index = find_package(package_list, ident_buf,
+                                     IDENT_SIZE);
+    // Package is not managed in the application
+    if (package_index == -1) {
+        send_RES(1, NULL, client_fd);
+        return;
+    }
+    // Hash is not in the package
+    long long chunk_size = find_hash_in_package
+            (package_list->packages[package_index],
+             hash_buf, offset);
+    if (chunk_size == -1) {
+        send_RES(1, NULL, client_fd);
+        return;
+    }
+
+    write_data(package_list->packages[package_index], size, offset, data_buf);
 }
 
 struct client_handler_args *create_client_handler_args(int peer_fd, char
@@ -132,12 +165,8 @@ void *start_client_handler(void *args) {
             p2p_handle_request(&packet_buf, package_list, client_fd);
             continue;
         } else if (msg_code == PKT_MSG_RES) {
-            union btide_payload res_buf = {0};
-            if (handle_RES(&res_buf, client_fd) == 0) {
-                // todo
-
-            }
-
+            // union btide_payload res_buf = {0};
+            // todo
             continue;
         }
 
@@ -298,12 +327,8 @@ void *start_client(void *args) {
             p2p_handle_request(&packet_buf, package_list, client_fd);
             continue;
         } else if (msg_code == PKT_MSG_RES) {
-            union btide_payload res_buf = {0};
-            if (handle_RES(&res_buf, client_fd) == 0) {
-                // todo
-
-            }
-
+            // union btide_payload res_buf = {0};
+            // todo
             continue;
         }
 

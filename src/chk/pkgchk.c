@@ -390,6 +390,31 @@ int get_data(struct bpkg_obj *obj, char *hash, int size, uint32_t abs_offset, ch
         return 0;
     }
     fread(data_buf, sizeof(char), size, fp);
+    fclose(fp);
+    return 1;
+}
+
+
+int write_data(struct bpkg_obj *obj, int size, uint32_t abs_offset, char
+*data_buf) {
+    char full_path[MAX_DATA_DIRECTORY_SIZE + MAX_FILENAME_SIZE];
+    get_file_full_path(full_path, obj);
+
+    FILE *fp = NULL;
+    if (check_file_existence(full_path) == 0) {
+        fp = fopen(full_path, "wb");
+    } else {
+        fp = fopen(full_path, "r+b");
+    }
+
+    if (fseek(fp, abs_offset, SEEK_SET) != 0) {
+        perror("Failed to offset the file");
+        fclose(fp);
+        return 0;
+    }
+
+    fwrite(data_buf, sizeof(char), size, fp);
+    fclose(fp);
     return 1;
 }
 
