@@ -1,2 +1,2 @@
-ADDPACKAGE bpkg_invalid_fields.bkpg
+ADDPACKAGE ./p2_tests/test3_btide_invalid_file/bpkg_invalid_fields.bpkg
 QUIT

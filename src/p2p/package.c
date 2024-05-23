@@ -34,22 +34,35 @@ void add_package(struct package_list *list, struct bpkg_obj *new_package) {
     printf("package.c: add_package: ERROR\n");
 }
 
-void remove_package(struct package_list *list, char *pkg_ident) {
+int find_package(struct package_list *list, char *pkg_ident, int match) {
     for (int i = 0; i < list->max_size; ++i) {
         struct bpkg_obj *current_obj = list->packages[i];
         if (current_obj == NULL) {
             continue;
         }
-        if (strncmp(current_obj->ident, pkg_ident, 20) == 0) {
-            bpkg_obj_destroy(current_obj);
-            list->packages[i] = NULL;
-            list->num_packages--;
-            printf("Package has been removed\n");
-            return;
+        if (strncmp(current_obj->ident, pkg_ident, match) == 0) {
+            return i;
         }
     }
+    return -1;
+}
 
-    printf("Identifier provided does not match managed packages\n");
+int find_hash_in_package(struct package_list *list, int package_index, char
+        *hash, int offset) {
+    return bpkg_chunk_hash_check(list->packages[package_index], hash, offset);
+}
+
+void remove_package(struct package_list *list, char *pkg_ident) {
+    int package_i = find_package(list, pkg_ident, 20);
+    if (package_i == -1) {
+        printf("Identifier provided does not match managed packages\n");
+        return;
+    }
+
+    bpkg_obj_destroy(list->packages[package_i]);
+    list->packages[package_i] = NULL;
+    list->num_packages--;
+    printf("Package has been removed\n");
 }
 
 void print_package(struct bpkg_obj *package, int count) {

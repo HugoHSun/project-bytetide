@@ -17,10 +17,11 @@ struct client_handler_args *create_chandler_args(int peer_fd, char *peer_ip,
     return new_args;
 }
 
-struct client_args *create_client_args(char *ip, uint16_t port) {
+struct client_args *create_client_args(char *ip, uint16_t port, struct peer_list *peer_list) {
     struct client_args *new_client_args = calloc(1, sizeof(struct client_args));
     strncpy(new_client_args->ip, ip, MAX_IP_SIZE);
     new_client_args->port = port;
+    new_client_args->peer_list = peer_list;
     return new_client_args;
 }
 
@@ -45,25 +46,30 @@ int setup_server_socket(u_int16_t port) {
     return server_fd;
 }
 
+// Handle connect request from other peers
 void *client_handler(void *args) {
     struct peer client = ((struct client_handler_args *) args)->new_peer;
     struct peer_list *peer_list = ((struct client_handler_args *) args)
             ->peer_list;
     free(args);
 
-    printf("Connected to Client: socket fd: %d, IP: %s, port: %d\n",
-           client.peer_fd, client.peer_ip, client.peer_port);
-
     // Failed to send ACP or receive ACK
     if (!send_ACP(client)) {
+        printf("Failed to send ACP or receive ACK in Client Handler\n");
         pthread_exit((void *)-1);
     }
     add_peer(peer_list, client);
 
+    // todo
     int client_fd = client.peer_fd;
     struct btide_packet packet_buf = {0};
     while (1) {
         ssize_t read_result = read(client_fd, &packet_buf, PAYLOAD_MAX);
+        // Client disconnected
+        if (read_result <= 0) {
+            remove_peer(peer_list, client.peer_ip, client.peer_port);
+            pthread_exit((void *) 0);
+        }
         if (read_result < PAYLOAD_MAX) {
             printf("Invalid packet at Client FD: %d\n", client_fd);
             continue;
@@ -117,16 +123,18 @@ void *start_server(void *args) {
     pthread_exit((void *) 0);
 }
 
+// Client Thread
 void *start_client(void *args) {
     // Retrieve arguments
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(((struct client_args *) args)->port);
     if (inet_pton(AF_INET, ((struct client_args *) args)->ip, &server_addr.sin_addr) <= 0) {
-        printf("Invalid IP address: %s\n", ((struct client_args *) args)->ip);
+        printf("Unable to connect to request peer\n");
         free(args);
         pthread_exit((void *) -1);
     }
+    struct peer_list *peer_list = ((struct client_args *) args)->peer_list;
     free(args);
 
     // Set up client socket
@@ -145,13 +153,27 @@ void *start_client(void *args) {
     }
 
     struct btide_packet packet_buf = {0};
+    // Wait for ACP packet
     if (!get_packet_tm(&packet_buf, client_fd)) {
-        printf("Client: Failed to get ACP from server\n");
+        printf("Unable to connect to request peer\n");
         close(client_fd);
         pthread_exit((void *) -1);
     }
-    printf("Connected to Server: IP: %s, port: %d\n", inet_ntoa
-            (server_addr.sin_addr), ntohs(server_addr.sin_port));
+    // Send ACK packet
+    if (!handle_ACP(client_fd)) {
+        printf("Unable to connect to request peer\n");
+        close(client_fd);
+        pthread_exit((void *) -1);
+    }
+
+    printf("Connection established with peer\n");
+    struct peer new_peer = {0};
+    new_peer.peer_fd = client_fd;
+    inet_ntop(AF_INET, &server_addr.sin_addr, new_peer.peer_ip, MAX_IP_SIZE);
+    new_peer.peer_port = ntohs(server_addr.sin_port);
+    add_peer(peer_list, new_peer);
+
+    // todo
 
     pthread_exit((void *) 0);
 }

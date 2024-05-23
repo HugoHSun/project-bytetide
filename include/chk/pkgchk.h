@@ -72,6 +72,11 @@ struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj *bpkg);
 int bpkg_complete_check(struct bpkg_obj *bpkg);
 
 /**
+ * Check if a chunk hash is in the package
+ */
+int bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, int offset);
+
+/**
  * Retrieves all completed chunks of a package object
  * @param bpkg, constructed bpkg object
  * @return query_result, This structure will contain a list of hashes

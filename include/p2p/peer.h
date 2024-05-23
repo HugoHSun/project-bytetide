@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #define MAX_IP_SIZE 16
 
@@ -24,7 +25,15 @@ struct peer_list *create_peer_list();
 
 void add_peer(struct peer_list *list, struct peer new_peer);
 
-void remove_peer(struct peer_list *list, struct peer peer);
+/**
+ * Find the index of the peer in the list
+ * @param list
+ * @param peer
+ * @return index of the peer, -1 otherwise
+ */
+int find_peer(struct peer_list *list, char *ip, u_int16_t port);
+
+void remove_peer(struct peer_list *list, char *ip, u_int16_t port);
 
 void print_peer_list(struct peer_list *list);
 

@@ -28,7 +28,9 @@ int send_packet(uint16_t msg_code, union btide_payload *payload, int peer_fd) {
     if (send_result < PACKET_SIZE) {
         printf("Failed to send all contents in %hu Packet to client: %d\n",
                msg_code, peer_fd);
+        return 0;
     }
+
     return 1;
 }
 
@@ -57,6 +59,7 @@ int get_packet_tm(struct btide_packet *packet_buf, int peer_fd) {
 
     if (read_result < PACKET_SIZE) {
         printf("Invalid Packet read from client: %d\n", peer_fd);
+        return 0;
     }
     return 1;
 }
@@ -78,10 +81,12 @@ int send_ACP(struct peer peer) {
     return 1;
 }
 
-void handle_ACP(int peer_fd) {
+int handle_ACP(int peer_fd) {
     if (!send_packet(PKT_MSG_ACK, NULL, peer_fd)) {
         printf("Failed to send ACK Packet to client: %d\n", peer_fd);
+        return 0;
     }
+    return 1;
 }
 
 int send_DSN(int peer_fd) {
@@ -140,6 +145,7 @@ void packet_handler(struct btide_packet *packet_buf, struct peer peer) {
     }
 
     if (msg_code == PKT_MSG_ACK) {
+        printf("RECEIVED ACK PACKET");
         return;
     }
 

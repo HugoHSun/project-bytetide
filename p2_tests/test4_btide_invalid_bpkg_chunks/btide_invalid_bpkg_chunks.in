@@ -1,2 +1,2 @@
-ADDPACKAGE bpkg_missing_chunks.bkpg
+ADDPACKAGE ./p2_tests/test4_btide_invalid_bpkg_chunks/bpkg_missing_chunks.bpkg
 QUIT

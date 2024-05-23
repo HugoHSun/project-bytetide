@@ -26,12 +26,13 @@ struct client_handler_args {
 struct client_args {
     char ip[MAX_IP_SIZE];
     uint16_t port;
+    struct peer_list *peer_list;
 };
 
 struct client_handler_args *create_chandler_args(int peer_fd, char *peer_ip,
         uint16_t peer_port, struct peer_list *peer_list);
 
-struct client_args *create_client_args(char *ip, uint16_t port);
+struct client_args *create_client_args(char *ip, uint16_t port, struct peer_list *peer_list);
 
 void *start_server(void *args);
 

@@ -454,6 +454,28 @@ int bpkg_complete_check(struct bpkg_obj *bpkg) {
 }
 
 /**
+ * Check if a chunk hash is in the package
+ */
+int bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, int offset) {
+    merkle_tree *hashes = bpkg->hashes;
+    // Iterate through all leaf nodes
+    for (size_t i = hashes->num_inner_nodes; i < hashes->num_nodes; ++i) {
+        if (strcmp(bpkg->hashes->nodes[i]->expected_hash, hash) == 0) {
+            // No offset specified
+            if (offset == INT32_MAX) {
+                return (int) i;
+            }
+            // Offset does not match, continue searching
+            if (bpkg->hashes->nodes[i]->value->offset != offset) {
+                continue;
+            }
+        }
+    }
+
+    return -1;
+}
+
+/**
  * Retrieves all completed chunks of a package object
  * @param bpkg, constructed bpkg object
  * @return query_result, This structure will contain a list of hashes

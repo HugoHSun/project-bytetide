@@ -56,6 +56,8 @@ struct btide_packet {
  */
 int send_ACP(struct peer peer);
 
+int handle_ACP(int peer_fd);
+
 int get_packet_tm(struct btide_packet *packet_buf, int peer_fd);
 
 void packet_handler(struct btide_packet *packet_buf, struct peer peer);

@@ -79,7 +79,14 @@ int main(int argc, char **argv) {
                 continue;
             }
 
-            struct client_args *new_args = create_client_args(ip_buf, port_buf);
+            if (find_peer(peer_list, ip_buf, port_buf) != -1) {
+                printf("Already connected to peer\n");
+                continue;
+            }
+
+            // Make a new thread to handle the new peer
+            struct client_args *new_args = create_client_args(ip_buf,
+                    port_buf, peer_list);
             pthread_t client_thread;
             pthread_create(&client_thread, NULL, start_client, new_args);
             continue;
@@ -95,9 +102,12 @@ int main(int argc, char **argv) {
                 continue;
             }
 
-            printf("COMMAND: %s|| IP: %s|| PORT: %d||\n", command_buf,
-                   ip_buf, port_buf);
+            if (port_buf < MIN_PORT_NUM || port_buf > MAX_PORT_NUM) {
+                printf("Missing address and port argument\n");
+                continue;
+            }
 
+            remove_peer(peer_list, ip_buf, port_buf);
             continue;
         }
 
@@ -149,7 +159,7 @@ int main(int argc, char **argv) {
             char space_buf2 = 0;
             char hash_buf[SHA256_HEX_STRLEN] = {0};
             char space_buf3 = 0;
-            int offset_buf = -1;
+            int offset_buf = INT32_MAX;
             if (sscanf(current_line, "%15[^0-9]%15[^:]:%d%c%1024s%c%64s%c%d",
                        command_buf, ip_buf, &port_buf, &space_buf1,
                        ident_buf, &space_buf2, hash_buf, &space_buf3,
@@ -159,11 +169,31 @@ int main(int argc, char **argv) {
                 printf("Missing arguments from command\n");
                 continue;
             }
-            if (offset_buf != -1) {
-                printf("OFFSET: %d", offset_buf);
+            // Look for the peer
+            int peer_ind;
+            if ((peer_ind = find_peer(peer_list, ip_buf, port_buf)) == -1) {
+                printf("Unable to request chunk, peer not in list\n");
+                continue;
+            }
+            // Look for the package
+            int package_ind;
+            if ((package_ind = find_package(package_list, ident_buf,
+                                         MAX_IDENT_SIZE)) == -1) {
+                printf("Unable to request chunk, package is not managed\n");
+                continue;
+            }
+            if (offset_buf < 0) {
+                printf("Invalid Input");
+                continue;
+            }
+            // Look for hash in the package
+            if (find_hash_in_package(package_list, package_ind, hash_buf, offset_buf) ==
+            -1) {
+                printf("Unable to request chunk, chunk hash does not belong to package\n");
+                continue;
             }
 
-            printf("FETCH COMMAND\n");
+            printf("FETCH COMMAND SUCCESS\n");
             continue;
         }
 

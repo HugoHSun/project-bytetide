@@ -42,19 +42,35 @@ void add_peer(struct peer_list *list, struct peer new_peer) {
     printf("peer.c: add_peer: ERROR\n");
 }
 
-void remove_peer(struct peer_list *list, struct peer peer) {
+/**
+ * Find the index of the peer in the list
+ * @param list
+ * @param peer
+ * @return index of the peer, -1 otherwise
+ */
+int find_peer(struct peer_list *list, char *ip, u_int16_t port) {
     for (int i = 0; i < list->max_size; ++i) {
         struct peer current_peer = list->peers[i];
-        if (current_peer.peer_fd == peer.peer_fd && (strncmp(current_peer
-        .peer_ip, peer.peer_ip, MAX_IP_SIZE) == 0) && current_peer.peer_port ==
-        peer.peer_port) {
-            current_peer.peer_fd = -1;
-            list->num_peers--;
-            return;
+        if (current_peer.peer_fd != -1 && (strncmp(current_peer.peer_ip, ip,
+            MAX_IP_SIZE) == 0) && current_peer.peer_port == port) {
+            return i;
         }
     }
+    return -1;
+}
 
-    printf("Unknown peer, not connected\n");
+void remove_peer(struct peer_list *list, char *ip, u_int16_t port) {
+    int index;
+    if ((index = find_peer(list, ip, port)) == -1) {
+        printf("Unknown peer, not connected\n");
+        return;
+    }
+
+    // Close the peer socket
+    close(list->peers[index].peer_fd);
+    list->peers[index].peer_fd = -1;
+    list->num_peers--;
+    printf("Disconnected from peer\n");
 }
 
 void print_peer_list(struct peer_list *list) {
