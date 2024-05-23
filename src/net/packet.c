@@ -1,15 +1,18 @@
 #include "net/packet.h"
 
 /**
- * Send a packet to peer
+ *  * Send a packet to a peer
  * @param msg_code
+ * @param err
  * @param payload
  * @param peer_fd
  * @return 1 if success, 0 for error
  */
-int send_packet(uint16_t msg_code, union btide_payload *payload, int peer_fd) {
+int send_packet(uint16_t msg_code, uint16_t err, union btide_payload *payload,
+                int peer_fd) {
     struct btide_packet packet_buf = {0};
     packet_buf.msg_code = msg_code;
+    packet_buf.error = err;
 
     if (payload != NULL && msg_code == PKT_MSG_REQ) {
         packet_buf.pl.request = payload->request;
@@ -18,15 +21,13 @@ int send_packet(uint16_t msg_code, union btide_payload *payload, int peer_fd) {
     }
 
     size_t send_result = send(peer_fd, &packet_buf, PACKET_SIZE, 0);
-
-    // The socket connection is disconnected
-    if (send_result == -1) {
-        close(peer_fd);
+    // The socket is disconnected
+    if (send_result <= 0) {
         return 0;
     }
 
     if (send_result < PACKET_SIZE) {
-        printf("Failed to send all contents in %hu Packet to client: %d\n",
+        printf("Failed to send all contents in %hu Packet to Client FD: %d\n",
                msg_code, peer_fd);
         return 0;
     }
@@ -47,8 +48,14 @@ int get_packet_tm(struct btide_packet *packet_buf, int peer_fd) {
                sizeof(timeout));
 
     ssize_t read_result = read(peer_fd, packet_buf, PACKET_SIZE);
-    if (read_result == -1) {
-        close(peer_fd);
+    // Peer disconnected or error occurred
+    if (read_result <= 0) {
+        return 0;
+    }
+    // Invalid packet read
+    if (read_result < PACKET_SIZE) {
+        printf("Invalid Packet read from Client FD: %d LEN: %lu\n", peer_fd,
+               read_result);
         return 0;
     }
 
@@ -56,11 +63,6 @@ int get_packet_tm(struct btide_packet *packet_buf, int peer_fd) {
     timeout.tv_sec = 0;
     setsockopt(peer_fd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout,
                sizeof(timeout));
-
-    if (read_result < PACKET_SIZE) {
-        printf("Invalid Packet read from client: %d\n", peer_fd);
-        return 0;
-    }
     return 1;
 }
 
@@ -68,7 +70,7 @@ int send_ACP(struct peer peer) {
     int peer_fd = peer.peer_fd;
 
     // Send the ACP packet
-    if (!send_packet(PKT_MSG_ACP, NULL, peer_fd)) {
+    if (!send_packet(PKT_MSG_ACP, 0, NULL, peer_fd)) {
         return 0;
     }
 
@@ -82,8 +84,8 @@ int send_ACP(struct peer peer) {
 }
 
 int handle_ACP(int peer_fd) {
-    if (!send_packet(PKT_MSG_ACK, NULL, peer_fd)) {
-        printf("Failed to send ACK Packet to client: %d\n", peer_fd);
+    if (!send_packet(PKT_MSG_ACK, 0, NULL, peer_fd)) {
+        printf("Failed to send ACK Packet to Peer FD: %d\n", peer_fd);
         return 0;
     }
     return 1;
@@ -91,84 +93,90 @@ int handle_ACP(int peer_fd) {
 
 int send_DSN(int peer_fd) {
     // Send the DSN packet
-    if (!send_packet(PKT_MSG_DSN, NULL, peer_fd)) {
+    if (!send_packet(PKT_MSG_DSN, 0, NULL, peer_fd)) {
+        printf("Failed to send DSN Packet to Peer FD: %d\n", peer_fd);
         return 0;
     }
 
-    close(peer_fd);
     return 1;
 }
 
-void handle_DSN(int peer_fd) {
-    close(peer_fd);
-}
-
 int send_REQ(union btide_payload *req, int peer_fd) {
-    if (!send_packet(PKT_MSG_REQ, req, peer_fd)) {
+    if (!send_packet(PKT_MSG_REQ, 0, req, peer_fd)) {
+        printf("Failed to send REQ Packet to Peer FD: %d\n", peer_fd);
+        free(req);
         return 0;
     }
 
     struct btide_packet response_packet = {0};
     get_packet_tm(&response_packet, peer_fd);
-    return 0;
+    return 1;
 }
 
-void handle_REQ() {
-
-}
-
-int send_PNG(int peer_fd) {
-    if (!send_packet(PKT_MSG_PNG, NULL, peer_fd)) {
+int send_RES(uint16_t err, union btide_payload *res, int peer_fd) {
+    if (!send_packet(PKT_MSG_RES, err, res, peer_fd)) {
+        printf("Failed to send RES packet to Peer FD: %d\n", peer_fd);
+        free(res);
         return 0;
     }
 
+    free(res);
+    return 1;
+}
+
+int handle_RES(union btide_payload *res_buf, int peer_fd) {
+    return 0;
+}
+
+int send_PNG(int peer_fd) {
+    if (!send_packet(PKT_MSG_PNG, 0, NULL, peer_fd)) {
+        printf("Failed to send PNG packet to Peer FD: %d\n", peer_fd);
+        return 0;
+    }
+
+    // Wait for POG with 3 seconds timeout
     struct btide_packet packet_buf = {0};
     if (!get_packet_tm(&packet_buf, peer_fd)) {
         return 0;
     }
-
     return 1;
 }
 
-void handle_PNG(int peer_fd) {
-    if (!send_packet(PKT_MSG_POG, NULL, peer_fd)) {
-        printf("Failed to send POG Packet to client FD: %d\n", peer_fd);
+int handle_PNG(int peer_fd) {
+    if (!send_packet(PKT_MSG_POG, 0, NULL, peer_fd)) {
+        printf("Failed to send POG Packet to Peer FD: %d\n", peer_fd);
+        return 0;
     }
+    return 1;
 }
 
-void packet_handler(struct btide_packet *packet_buf, struct peer peer) {
-    uint16_t msg_code = packet_buf->msg_code;
-
+/**
+ * Handle received packets with no payload
+ * @param packet_buf
+ * @param peer
+ * @return 1 if successfully handled, 0 when failed
+ */
+int packet_handler_non_payload(uint16_t msg_code, struct peer peer) {
     if (msg_code == PKT_MSG_ACP) {
-        handle_ACP(peer.peer_fd);
-        return;
+        return handle_ACP(peer.peer_fd);
     }
 
     if (msg_code == PKT_MSG_ACK) {
-        printf("RECEIVED ACK PACKET");
-        return;
+        return 1;
     }
 
     if (msg_code == PKT_MSG_DSN) {
-        handle_DSN(peer.peer_fd);
-        return;
-    }
-
-    if (msg_code == PKT_MSG_REQ) {
-        printf("RECEIVED REQ from Client fd: %d\n", peer.peer_fd);
-        return;
-    }
-
-    if (msg_code == PKT_MSG_RES) {
-        return;
+        return 0;
     }
 
     if (msg_code == PKT_MSG_PNG) {
-        send_PNG(peer.peer_fd);
-        return;
+        return handle_PNG(peer.peer_fd);
     }
 
     if (msg_code == PKT_MSG_POG) {
-        return;
+        return 1;
     }
+
+    printf("Packet not recognised\n");
+    return 0;
 }

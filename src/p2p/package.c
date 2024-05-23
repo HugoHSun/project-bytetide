@@ -1,7 +1,7 @@
 #include "p2p/package.h"
 
 struct package_list *create_package_list() {
-    int init_size = 8;
+    int init_size = PACKAGES_INIT_SIZE;
     struct package_list *new_list = calloc(1, sizeof(struct package_list));
     new_list->max_size = init_size;
     new_list->num_packages = 0;
@@ -34,6 +34,13 @@ void add_package(struct package_list *list, struct bpkg_obj *new_package) {
     printf("package.c: add_package: ERROR\n");
 }
 
+/**
+ * Find the package with pkg_ident in the package list
+ * @param list
+ * @param pkg_ident
+ * @param match
+ * @return the index in the package list, -1 when failed
+ */
 int find_package(struct package_list *list, char *pkg_ident, int match) {
     for (int i = 0; i < list->max_size; ++i) {
         struct bpkg_obj *current_obj = list->packages[i];
@@ -47,9 +54,9 @@ int find_package(struct package_list *list, char *pkg_ident, int match) {
     return -1;
 }
 
-int find_hash_in_package(struct package_list *list, int package_index, char
-        *hash, int offset) {
-    return bpkg_chunk_hash_check(list->packages[package_index], hash, offset);
+long long find_hash_in_package(struct bpkg_obj *package, char *hash, uint32_t
+        offset) {
+    return bpkg_chunk_hash_check(package, hash, offset);
 }
 
 void remove_package(struct package_list *list, char *pkg_ident) {

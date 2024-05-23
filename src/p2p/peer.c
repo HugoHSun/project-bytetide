@@ -1,7 +1,7 @@
 #include "p2p/peer.h"
 
 struct peer_list *create_peer_list() {
-    int init_size = 8;
+    int init_size = PEERS_INIT_SIZE;
     struct peer_list *new_list = calloc(1, sizeof(struct peer_list));
     new_list->max_size = init_size;
     new_list->num_peers = 0;

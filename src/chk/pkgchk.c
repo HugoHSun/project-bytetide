@@ -13,6 +13,7 @@ void free_node_buf(merkle_tree_node **buf, uint32_t size) {
     free(buf);
 }
 
+
 /**
  * Loads the package for when a valid path is given
  */
@@ -190,6 +191,7 @@ struct bpkg_obj *bpkg_load(const char *path) {
     return obj;
 }
 
+
 /**
  * Loads the package for when a valid path is given, with no error messages
  * printed
@@ -350,6 +352,18 @@ struct bpkg_obj *bpkg_load_no_message(const char *path, char *directory) {
     return obj;
 }
 
+
+void get_file_full_path(char *full_filename, struct bpkg_obj *bpkg) {
+    if (bpkg->directory[0] != '\0') {
+        strncpy(full_filename, bpkg->directory, MAX_DATA_DIRECTORY_SIZE - 1);
+        strcat(full_filename, "/");
+        strncat(full_filename, bpkg->filename, MAX_FILENAME_SIZE - 1);
+    } else {
+        strcpy(full_filename, bpkg->filename);
+    }
+}
+
+
 int check_file_existence(char *filename) {
     FILE * fp = fopen(filename, "r");
     if (fp != NULL) {
@@ -358,6 +372,27 @@ int check_file_existence(char *filename) {
     }
     return 0;
 }
+
+
+int get_data(struct bpkg_obj *obj, char *hash, int size, uint32_t abs_offset, char
+        *data_buf) {
+    char full_path[MAX_DATA_DIRECTORY_SIZE + MAX_FILENAME_SIZE];
+    get_file_full_path(full_path, obj);
+    // The file in bpkg does not exist
+    if (check_file_existence(full_path) == 0) {
+        return 0;
+    }
+
+    FILE *fp = fopen(full_path, "rb");
+    if (fseek(fp, abs_offset, SEEK_SET) != 0) {
+        perror("Failed to offset the file");
+        fclose(fp);
+        return 0;
+    }
+    fread(data_buf, sizeof(char), size, fp);
+    return 1;
+}
+
 
 /**
  * Checks to see if the referenced filename in the bpkg file
@@ -393,6 +428,7 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj *bpkg) {
     return query;
 }
 
+
 /**
  * Retrieves a list of all hashes within the package/tree
  * @param bpkg, constructed bpkg object
@@ -411,19 +447,14 @@ struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj *bpkg) {
     return qry;
 }
 
+
 int compute_chunk_hashes(struct bpkg_obj *bpkg) {
     if (bpkg == NULL) {
         return 0;
     }
 
     char full_filename[MAX_FILENAME_SIZE + MAX_DATA_DIRECTORY_SIZE];
-    if (bpkg->directory[0] != '\0') {
-        strncpy(full_filename, bpkg->directory, MAX_DATA_DIRECTORY_SIZE);
-        strcat(full_filename, "/");
-        strncat(full_filename, bpkg->filename, MAX_FILENAME_SIZE);
-    } else {
-        strcpy(full_filename, bpkg->filename);
-    }
+    get_file_full_path(full_filename, bpkg);
 
     // No hashes to compute if the file doesn't exist
     if (check_file_existence(full_filename) == 0) {
@@ -434,6 +465,7 @@ int compute_chunk_hashes(struct bpkg_obj *bpkg) {
     compute_leaf_hashes(bpkg->hashes, full_filename);
     return 1;
 }
+
 
 /**
  * Check if a file is complete in the package
@@ -453,20 +485,24 @@ int bpkg_complete_check(struct bpkg_obj *bpkg) {
     return 1;
 }
 
+
 /**
- * Check if a chunk hash is in the package
+ * Check if a chunk hash is in the package, return the chunk size if found
  */
-int bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, int offset) {
+long long bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, uint32_t
+        offset) {
     merkle_tree *hashes = bpkg->hashes;
     // Iterate through all leaf nodes
     for (size_t i = hashes->num_inner_nodes; i < hashes->num_nodes; ++i) {
-        if (strcmp(bpkg->hashes->nodes[i]->expected_hash, hash) == 0) {
+        struct merkle_tree_node *current_node = hashes->nodes[i];
+        if (strcmp(current_node->expected_hash, hash) == 0) {
             // No offset specified
-            if (offset == INT32_MAX) {
-                return (int) i;
+            if (offset == 0) {
+                return (long long) current_node->value->size;
             }
             // Offset does not match, continue searching
-            if (bpkg->hashes->nodes[i]->value->offset != offset) {
+            if (offset < current_node->value->offset || offset >=
+            (current_node->value->offset + current_node->value->size)) {
                 continue;
             }
         }
@@ -474,6 +510,7 @@ int bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, int offset) {
 
     return -1;
 }
+
 
 /**
  * Retrieves all completed chunks of a package object
@@ -504,6 +541,7 @@ struct bpkg_query bpkg_get_completed_chunks(struct bpkg_obj *bpkg) {
     return qry;
 }
 
+
 void compute_all_hashes(struct bpkg_obj *bpkg) {
     // No need to compute inner hashes when no leaf hashes are computed
     if (compute_chunk_hashes(bpkg) == 0) {
@@ -513,6 +551,7 @@ void compute_all_hashes(struct bpkg_obj *bpkg) {
     // Compute the hashes of the inner nodes
     compute_inner_hashes(bpkg->hashes);
 }
+
 
 /**
  * Gets only the required/min hashes to represent the current completion state

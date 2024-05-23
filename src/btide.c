@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
     struct package_list *package_list = create_package_list();
 
     // Start the server in a new thread
-    struct server_args args = {config.max_peers, config.port, peer_list};
+    struct server_args args = {config.max_peers, config.port, peer_list, package_list};
     pthread_t server_thread;
     if (pthread_create(&server_thread, NULL, start_server, &args) != 0) {
         printf("btide: Failed to start server\n");
@@ -52,6 +52,12 @@ int main(int argc, char **argv) {
 
         if (strncmp(command_buf, "PEERS", MAX_COMMAND_SIZE) == 0 && (strlen
         (current_line) == 5 || strlen(current_line) == 6)) {
+            // Send PNG to all peers
+            for (int i = 0; i < peer_list->max_size; ++i) {
+                if (!(peer_list->peers[i].peer_fd <= 0)) {
+                    send_PNG(peer_list->peers[i].peer_fd);
+                }
+            }
             print_peer_list(peer_list);
             continue;
         }
@@ -74,8 +80,9 @@ int main(int argc, char **argv) {
                 continue;
             }
 
+            // Invalid port number
             if (port_buf < MIN_PORT_NUM || port_buf > MAX_PORT_NUM) {
-                printf("Invalid port value\n");
+                printf("Invalid Input\n");
                 continue;
             }
 
@@ -84,9 +91,14 @@ int main(int argc, char **argv) {
                 continue;
             }
 
-            // Make a new thread to handle the new peer
+            if (peer_list->num_peers >= config.max_peers) {
+                printf("Unable to connect to request peer\n");
+                continue;
+            }
+
+            // Make a new client thread to connect the new peer
             struct client_args *new_args = create_client_args(ip_buf,
-                    port_buf, peer_list);
+                    port_buf, peer_list, package_list);
             pthread_t client_thread;
             pthread_create(&client_thread, NULL, start_client, new_args);
             continue;
@@ -102,8 +114,9 @@ int main(int argc, char **argv) {
                 continue;
             }
 
+            // Invalid port number
             if (port_buf < MIN_PORT_NUM || port_buf > MAX_PORT_NUM) {
-                printf("Missing address and port argument\n");
+                printf("Invalid Input\n");
                 continue;
             }
 
@@ -159,8 +172,8 @@ int main(int argc, char **argv) {
             char space_buf2 = 0;
             char hash_buf[SHA256_HEX_STRLEN] = {0};
             char space_buf3 = 0;
-            int offset_buf = INT32_MAX;
-            if (sscanf(current_line, "%15[^0-9]%15[^:]:%d%c%1024s%c%64s%c%d",
+            long long offset_buf = INT32_MIN;
+            if (sscanf(current_line, "%15[^0-9]%15[^:]:%d%c%1024s%c%64s%c%lld",
                        command_buf, ip_buf, &port_buf, &space_buf1,
                        ident_buf, &space_buf2, hash_buf, &space_buf3,
                        &offset_buf) < 7 || strncmp(command_buf, "FETCH ",
@@ -168,6 +181,12 @@ int main(int argc, char **argv) {
                        space_buf2 != ' ') {
                 printf("Missing arguments from command\n");
                 continue;
+            }
+            if (offset_buf != INT32_MIN && offset_buf < 0) {
+                printf("Invalid Input");
+                continue;
+            } else if (offset_buf == INT32_MIN) {
+                offset_buf = 0;
             }
             // Look for the peer
             int peer_ind;
@@ -182,16 +201,22 @@ int main(int argc, char **argv) {
                 printf("Unable to request chunk, package is not managed\n");
                 continue;
             }
-            if (offset_buf < 0) {
-                printf("Invalid Input");
-                continue;
-            }
-            // Look for hash in the package
-            if (find_hash_in_package(package_list, package_ind, hash_buf, offset_buf) ==
-            -1) {
+            // Look for the hash in the package
+            long long chunk_size;
+            if ((chunk_size = find_hash_in_package(package_list->packages[package_ind],
+                  hash_buf, (uint32_t) offset_buf)) == -1) {
                 printf("Unable to request chunk, chunk hash does not belong to package\n");
                 continue;
             }
+
+            // Construct REQ payload
+            union btide_payload payload = {0};
+            payload.request.file_offset = offset_buf;
+            payload.request.data_len = chunk_size;
+            strncpy(payload.request.chunk_hash, hash_buf, SHA256_HEX_LEN);
+            strncpy(payload.request.ident, ident_buf, MAX_IDENT_SIZE);
+
+            send_REQ(&payload, peer_ind);
 
             printf("FETCH COMMAND SUCCESS\n");
             continue;

@@ -1,8 +1,82 @@
 #include "p2p/p2p_node.h"
 
-struct client_handler_args *create_chandler_args(int peer_fd, char *peer_ip,
-                                                 uint16_t peer_port, struct
-                                                 peer_list *peer_list) {
+int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
+        *package_list, int client_fd) {
+    // Retrieve the data in the REQ packet
+    uint32_t offset = packet_buf->pl.request.file_offset;
+    uint16_t size = packet_buf->pl.request.data_len;
+    char hash_buf[SHA256_HEX_STRLEN];
+    strncpy(hash_buf, packet_buf->pl.request.chunk_hash, SHA256_HEX_LEN);
+    char ident_buf[MAX_IDENT_SIZE];
+    strncpy(ident_buf, packet_buf->pl.request.ident, IDENT_SIZE);
+
+    // Prepare RES to send back
+    packet_buf->msg_code = PKT_MSG_RES;
+    int package_index = find_package(package_list, ident_buf,
+                                     IDENT_SIZE);
+    // Package is not managed in the application
+    if (package_index == -1) {
+        send_RES(1, NULL, client_fd);
+        return 0;
+    }
+    // Hash is not in the package
+    long long chunk_size = find_hash_in_package
+            (package_list->packages[package_index],
+                                          hash_buf, offset);
+    if (chunk_size == -1) {
+        send_RES(1, NULL, client_fd);
+        return 0;
+    }
+
+    // Keep sending RES until data_len is met
+    uint32_t abs_offset = offset;
+    uint16_t bytes_sent = 0;
+    while (bytes_sent < size) {
+        abs_offset += bytes_sent;
+        uint16_t remaining = size - bytes_sent;
+        union btide_payload res_payload = {0};
+        res_payload.response.file_offset = abs_offset;
+        strncpy(res_payload.response.chunk_hash, hash_buf, CHUNK_HASH_SIZE);
+        strncpy(res_payload.response.ident, ident_buf, IDENT_SIZE);
+
+        // Cannot fit the remaining chunk into the packet
+        if (remaining > MAX_DATA_SIZE) {
+            get_data(package_list->packages[package_index], hash_buf,
+                     MAX_DATA_SIZE, abs_offset, res_payload.response
+                     .data);
+            res_payload.response.data_len = MAX_DATA_SIZE;
+
+
+            // Failed to handle REQ
+            if (send_RES(0, &res_payload, client_fd) == 0) {
+                printf("Client Handler: Failed to send RES\n");
+                return 0;
+            }
+            bytes_sent += MAX_DATA_SIZE;
+        } else {
+            get_data(package_list->packages[package_index], hash_buf,
+                     remaining, abs_offset, res_payload.response
+                             .data);
+            res_payload.response.data_len = remaining;
+
+            // Failed to handle REQ
+            if (send_RES(0, &res_payload, client_fd) == 0) {
+                printf("Client Handler: Failed to send RES\n");
+                return 0;
+            }
+            bytes_sent += remaining;
+        }
+    }
+    return 1;
+}
+
+void p2p_handle_response() {
+
+}
+
+struct client_handler_args *create_client_handler_args(int peer_fd, char
+        *peer_ip, uint16_t peer_port, struct peer_list *peer_list, struct
+                package_list *package_list) {
     struct client_handler_args *new_args = calloc(1, sizeof(struct
             client_handler_args));
 
@@ -13,16 +87,62 @@ struct client_handler_args *create_chandler_args(int peer_fd, char *peer_ip,
 
     new_args->new_peer = new_peer;
     new_args->peer_list = peer_list;
+    new_args->package_list = package_list;
 
     return new_args;
 }
 
-struct client_args *create_client_args(char *ip, uint16_t port, struct peer_list *peer_list) {
-    struct client_args *new_client_args = calloc(1, sizeof(struct client_args));
-    strncpy(new_client_args->ip, ip, MAX_IP_SIZE);
-    new_client_args->port = port;
-    new_client_args->peer_list = peer_list;
-    return new_client_args;
+// Handle connection request from another peer and subsequent packets
+void *start_client_handler(void *args) {
+    // Retrieve arguments
+    struct peer client = ((struct client_handler_args *) args)->new_peer;
+    struct peer_list *peer_list = ((struct client_handler_args *) args)
+            ->peer_list;
+    struct package_list *package_list = ((struct client_handler_args *) args)
+            ->package_list;
+    free(args);
+
+    // Failed to send ACP or receive ACK
+    if (!send_ACP(client)) {
+        printf("Failed to send ACP or receive ACK in Client Handler\n");
+        pthread_exit((void *)-1);
+    }
+    add_peer(peer_list, client);
+
+    int client_fd = client.peer_fd;
+    struct btide_packet packet_buf = {0};
+    // Listen for any packets from the client
+    while (1) {
+        ssize_t read_result = read(client_fd, &packet_buf, PACKET_SIZE);
+        // Client disconnected
+        if (read_result <= 0) {
+            remove_peer(peer_list, client.peer_ip, client.peer_port);
+            pthread_exit((void *) -1);
+        }
+        // Try again after reading an invalid packet
+        if (read_result < PAYLOAD_MAX) {
+            printf("Invalid packet from Client FD: %d LEN: %lu\n", client_fd,
+                   read_result);
+            continue;
+        }
+
+        // Handle different packet types
+        uint16_t msg_code = packet_buf.msg_code;
+        if (msg_code == PKT_MSG_REQ) {
+            p2p_handle_request(&packet_buf, package_list, client_fd);
+            continue;
+        } else if (msg_code == PKT_MSG_RES) {
+            union btide_payload res_buf = {0};
+            if (handle_RES(&res_buf, client_fd) == 0) {
+                // todo
+
+            }
+
+            continue;
+        }
+
+        packet_handler_non_payload(msg_code, client);
+    }
 }
 
 int setup_server_socket(u_int16_t port) {
@@ -38,7 +158,7 @@ int setup_server_socket(u_int16_t port) {
     socket_addr.sin_addr.s_addr = INADDR_ANY;
     if (bind(server_fd, (struct sockaddr *) &socket_addr, sizeof
             (struct sockaddr_in)) == -1) {
-        printf("Server: Failed to bind\n");
+        perror("Server: Failed to bind");
         close(server_fd);
         pthread_exit((void *) -1);
     }
@@ -46,53 +166,24 @@ int setup_server_socket(u_int16_t port) {
     return server_fd;
 }
 
-// Handle connect request from other peers
-void *client_handler(void *args) {
-    struct peer client = ((struct client_handler_args *) args)->new_peer;
-    struct peer_list *peer_list = ((struct client_handler_args *) args)
-            ->peer_list;
-    free(args);
-
-    // Failed to send ACP or receive ACK
-    if (!send_ACP(client)) {
-        printf("Failed to send ACP or receive ACK in Client Handler\n");
-        pthread_exit((void *)-1);
-    }
-    add_peer(peer_list, client);
-
-    // todo
-    int client_fd = client.peer_fd;
-    struct btide_packet packet_buf = {0};
-    while (1) {
-        ssize_t read_result = read(client_fd, &packet_buf, PAYLOAD_MAX);
-        // Client disconnected
-        if (read_result <= 0) {
-            remove_peer(peer_list, client.peer_ip, client.peer_port);
-            pthread_exit((void *) 0);
-        }
-        if (read_result < PAYLOAD_MAX) {
-            printf("Invalid packet at Client FD: %d\n", client_fd);
-            continue;
-        }
-
-        packet_handler(&packet_buf, client);
-    }
-}
-
 void *start_server(void *args) {
     u_int16_t server_port = ((struct server_args *) args)->port;
     int max_peers = ((struct server_args *) args)->max_peers;
     struct peer_list *peer_list = ((struct server_args *) args)->peer_list;
+    struct package_list *package_list = ((struct server_args *) args)
+            ->package_list;
 
     int server_fd = setup_server_socket(server_port);
     // Start listening on the port
     if (listen(server_fd, max_peers) == -1) {
-        printf("Server: Failed to listen\n");
+        perror("Server: Failed to listen");
         close(server_fd);
         pthread_exit((void *) -1);
     }
 
+    // Keep handling new connections
     while (1) {
+        // Maximum peer capacity reached
         if (peer_list->num_peers >= max_peers) {
             continue;
         }
@@ -102,17 +193,17 @@ void *start_server(void *args) {
         socklen_t addr_len = sizeof(client_address);
         if ((client_fd = accept(server_fd, (struct sockaddr *)
                 &client_address, &addr_len)) == -1) {
-            printf("Server: Failed to accept new connection\n");
+            perror("Server: Failed to accept new connection");
             close(server_fd);
             pthread_exit((void *) -1);
         }
 
-        // Create a client handler thread to handle every new connection
-        struct client_handler_args *new_args = create_chandler_args
+        // Create a client handler thread to handle the new peer
+        struct client_handler_args *new_args = create_client_handler_args
                 (client_fd, inet_ntoa(client_address.sin_addr), ntohs
-                (client_address.sin_port), peer_list);
+                        (client_address.sin_port), peer_list, package_list);
         pthread_t handler_thread;
-        if (pthread_create(&handler_thread, NULL, client_handler,
+        if (pthread_create(&handler_thread, NULL, start_client_handler,
                            new_args) != 0) {
             free(new_args);
             printf("Failed to create new client handler thread\n");
@@ -121,6 +212,16 @@ void *start_server(void *args) {
     }
 
     pthread_exit((void *) 0);
+}
+
+struct client_args *create_client_args(char *ip, uint16_t port, struct
+        peer_list *peer_list, struct package_list *package_list) {
+    struct client_args *new_client_args = calloc(1, sizeof(struct client_args));
+    strncpy(new_client_args->ip, ip, MAX_IP_SIZE);
+    new_client_args->port = port;
+    new_client_args->peer_list = peer_list;
+    new_client_args->package_list = package_list;
+    return new_client_args;
 }
 
 // Client Thread
@@ -135,6 +236,8 @@ void *start_client(void *args) {
         pthread_exit((void *) -1);
     }
     struct peer_list *peer_list = ((struct client_args *) args)->peer_list;
+    struct package_list *package_list = ((struct client_args *) args)
+            ->package_list;
     free(args);
 
     // Set up client socket
@@ -167,13 +270,45 @@ void *start_client(void *args) {
     }
 
     printf("Connection established with peer\n");
+    // Add the peer
     struct peer new_peer = {0};
     new_peer.peer_fd = client_fd;
     inet_ntop(AF_INET, &server_addr.sin_addr, new_peer.peer_ip, MAX_IP_SIZE);
     new_peer.peer_port = ntohs(server_addr.sin_port);
     add_peer(peer_list, new_peer);
 
-    // todo
+    // Listen for any packets from the client
+    while (1) {
+        ssize_t read_result = read(client_fd, &packet_buf, PACKET_SIZE);
+        // Client disconnected
+        if (read_result <= 0) {
+            remove_peer(peer_list, new_peer.peer_ip, new_peer.peer_port);
+            pthread_exit((void *) -1);
+        }
+        // Try again after reading an invalid packet
+        if (read_result < PAYLOAD_MAX) {
+            printf("Invalid packet from Client FD: %d LEN: %lu\n", client_fd,
+                   read_result);
+            continue;
+        }
+
+        // Handle different packet types
+        uint16_t msg_code = packet_buf.msg_code;
+        if (msg_code == PKT_MSG_REQ) {
+            p2p_handle_request(&packet_buf, package_list, client_fd);
+            continue;
+        } else if (msg_code == PKT_MSG_RES) {
+            union btide_payload res_buf = {0};
+            if (handle_RES(&res_buf, client_fd) == 0) {
+                // todo
+
+            }
+
+            continue;
+        }
+
+        packet_handler_non_payload(msg_code, new_peer);
+    }
 
     pthread_exit((void *) 0);
 }

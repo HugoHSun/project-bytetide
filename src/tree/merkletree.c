@@ -80,7 +80,7 @@ void compute_leaf_hashes(merkle_tree *hashes, char *filename) {
         chunk *current_chunk = current_node->value;
 
         if (fseek(data_file, current_chunk->offset, SEEK_SET) != 0) {
-            printf("Failed to offset the file\n");
+            perror("Failed to offset the file");
             fclose(data_file);
             return;
         }

@@ -38,7 +38,6 @@ struct response_payload {
 };
 
 union btide_payload {
-    uint8_t data[PAYLOAD_MAX];
     struct request_payload request;
     struct response_payload response;
 };
@@ -49,17 +48,66 @@ struct btide_packet {
     union btide_payload pl;
 };
 
+int get_packet_tm(struct btide_packet *packet_buf, int peer_fd);
+
 /**
- * Send ACP packet to peer
+ * Send ACP to peer and wait for ACK with 3 seconds timeout
  * @param peer
- * @return 1 if successful sent ACP and received ACK in 3 seconds, 0 otherwise
+ * @return 1 if success, 0 otherwise
  */
 int send_ACP(struct peer peer);
 
+/**
+ * Handle ACP by sending back ACK
+ * @param peer_fd
+ * @return 1 if success, 0 otherwise
+ */
 int handle_ACP(int peer_fd);
 
-int get_packet_tm(struct btide_packet *packet_buf, int peer_fd);
+/**
+ * Send DSN to peer
+ * @param peer_fd
+ * @return 1 if success, 0 otherwise
+ */
+int send_DSN(int peer_fd);
 
-void packet_handler(struct btide_packet *packet_buf, struct peer peer);
+/**
+ * Send REQ to peer
+ * @param req REQ payload
+ * @param peer_fd
+ * @return 1 if success, 0 otherwise
+ */
+int send_REQ(union btide_payload *req, int peer_fd);
+
+/**
+ * Send RES to peer
+ * @param res the RES payload to be send back
+ * @param peer_fd
+ * @return 1 if success, 0 otherwise
+ */
+int send_RES(uint16_t err, union btide_payload *res, int peer_fd);
+
+/**
+ * Handle RES
+ * @param res_buf buffer for storing RES payload
+ * @param peer_fd
+ * @return 1 if success, 0 otherwise
+ */
+int handle_RES(union btide_payload *res_buf, int peer_fd);
+
+/**
+ * Send PNG and wait for POG with 3 seconds timeout
+ * @param peer_fd
+ * @return 1 if success, 0 otherwise
+ */
+int send_PNG(int peer_fd);
+
+/**
+ * Handle received packets with no payload
+ * @param packet_buf
+ * @param peer
+ * @return 1 if successfully handled, 0 when failed
+ */
+int packet_handler_non_payload(uint16_t msg_code, struct peer peer);
 
 #endif
