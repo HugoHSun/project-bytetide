@@ -126,10 +126,10 @@ int send_PNG(int peer_fd) {
     }
 
     // Wait for POG with 3 seconds timeout
-    struct btide_packet packet_buf = {0};
+    /*struct btide_packet packet_buf = {0};
     if (!get_packet_tm(&packet_buf, peer_fd)) {
         return 0;
-    }
+    }*/
     return 1;
 }
 
@@ -139,36 +139,4 @@ int handle_PNG(int peer_fd) {
         return 0;
     }
     return 1;
-}
-
-/**
- * Handle received packets with no payload
- * @param packet_buf
- * @param peer
- * @return 1 if successfully handled, 0 when handling failed, -1 to signal
- * remove peer
- */
-int packet_handler_non_payload(uint16_t msg_code, int peer_fd) {
-    if (msg_code == PKT_MSG_ACP) {
-        return handle_ACP(peer_fd);
-    }
-
-    if (msg_code == PKT_MSG_ACK) {
-        return 1;
-    }
-
-    if (msg_code == PKT_MSG_DSN) {
-        return -1;
-    }
-
-    if (msg_code == PKT_MSG_PNG) {
-        return handle_PNG(peer_fd);
-    }
-
-    if (msg_code == PKT_MSG_POG) {
-        return 1;
-    }
-
-    printf("Packet not recognised\n");
-    return 0;
 }

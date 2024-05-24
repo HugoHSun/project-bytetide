@@ -168,12 +168,15 @@ void *start_client_handler(void *args) {
             printf("CLIENT HANDLER: RECEIVED RES\n");
             // todo
             continue;
-        }
-
-        // Signal for closing the connection
-        if (packet_handler_non_payload(msg_code, client.peer_fd) == -1) {
+        } else if (msg_code == PKT_MSG_DSN) { // Signal for closing the connection
             remove_peer(peer_list, client.peer_ip, client.peer_port);
             break;
+        } else if (msg_code == PKT_MSG_PNG) {
+            handle_PNG(client_fd);
+            continue;
+        } else {
+            // Should not receive: ACP, ACK
+            // No need to handle: POG
         }
     }
 
@@ -336,13 +339,15 @@ void *start_client(void *args) {
             printf("Client: RECEIVED RES\n");
             // todo
             continue;
-        }
-
-        // Signal for closing the connection
-        if (packet_handler_non_payload(msg_code, client_fd) == -1) {
-            printf("MARK READ: %zd MSG: %d \n", read_result, msg_code);
+        } else if (msg_code == PKT_MSG_DSN) { // Signal for closing the connection
             remove_peer(peer_list, new_peer.peer_ip, new_peer.peer_port);
             break;
+        } else if (msg_code == PKT_MSG_PNG) {
+            handle_PNG(new_peer.peer_fd);
+            continue;
+        } else {
+            // Should not receive: ACP, ACK
+            // No need to handle: POG
         }
     }
 

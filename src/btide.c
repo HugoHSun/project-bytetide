@@ -120,7 +120,15 @@ int main(int argc, char **argv) {
                 continue;
             }
 
+            int index;
+            if ((index = find_peer(peer_list, ip_buf, port_buf)) == -1) {
+                printf("Unknown peer, not connected\n");
+                continue;
+            }
+
+            send_DSN(peer_list->peers[index].peer_fd);
             remove_peer(peer_list, ip_buf, port_buf);
+            printf("Disconnected from peer\n");
             continue;
         }
 

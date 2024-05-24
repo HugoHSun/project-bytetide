@@ -62,16 +62,13 @@ int find_peer(struct peer_list *list, char *ip, u_int16_t port) {
 void remove_peer(struct peer_list *list, char *ip, u_int16_t port) {
     int index;
     if ((index = find_peer(list, ip, port)) == -1) {
-        printf("Unknown peer, not connected\n");
         return;
     }
 
-    send_DSN(list->peers[index].peer_fd);
     // Close the peer socket
     close(list->peers[index].peer_fd);
     list->peers[index].peer_fd = -1;
     list->num_peers--;
-    printf("Disconnected from peer\n");
 }
 
 void print_peer_list(struct peer_list *list) {
