@@ -408,6 +408,11 @@ int write_data(struct bpkg_obj *obj, uint16_t size, uint32_t abs_offset, char
         if ((fp = fopen(full_path, "wb")) == NULL) {
             perror("write_data - wb:");
         }
+        // Create file with specified size
+        char null_byte = 0;
+        for (size_t i = 0; i < obj->size; ++i) {
+            fwrite(&null_byte, sizeof(char), 1, fp);
+        }
     } else {
         if ((fp = fopen(full_path, "r+b")) == NULL) {
             perror("write_data - r+b:");
