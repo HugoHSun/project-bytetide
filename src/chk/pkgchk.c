@@ -374,7 +374,8 @@ int check_file_existence(char *filename) {
 }
 
 
-int get_data(struct bpkg_obj *obj, char *hash, int size, uint32_t abs_offset, char
+int get_data(struct bpkg_obj *obj, uint32_t size, uint32_t abs_offset,
+        char
         *data_buf) {
     char full_path[MAX_DATA_DIRECTORY_SIZE + MAX_FILENAME_SIZE];
     get_file_full_path(full_path, obj);
@@ -514,7 +515,7 @@ int bpkg_complete_check(struct bpkg_obj *bpkg) {
 /**
  * Check if a chunk hash is in the package, return the chunk size if found
  */
-long long bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, uint32_t
+uint32_t bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, uint32_t
         offset) {
     merkle_tree *hashes = bpkg->hashes;
     // Iterate through all leaf nodes
@@ -523,7 +524,7 @@ long long bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, uint32_t
         if (strcmp(current_node->expected_hash, hash) == 0) {
             // No offset specified
             if (offset == 0) {
-                return (long long) current_node->value->size;
+                return current_node->value->size;
             }
             // Offset does not match, continue searching
             if (offset < current_node->value->offset || offset >=
@@ -533,7 +534,7 @@ long long bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, uint32_t
         }
     }
 
-    return -1;
+    return 0;
 }
 
 

@@ -4,7 +4,7 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
         *package_list, int client_fd) {
     // Retrieve the data in the REQ packet
     uint32_t offset = packet_buf->pl.request.file_offset;
-    uint16_t size = packet_buf->pl.request.data_len;
+    uint32_t size = packet_buf->pl.request.data_len;
     char hash_buf[SHA256_HEX_STRLEN] = {0};
     strncpy(hash_buf, packet_buf->pl.request.chunk_hash, SHA256_HEX_LEN);
     char ident_buf[MAX_IDENT_SIZE] = {0};
@@ -13,27 +13,27 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
     // Prepare RES to send back
     packet_buf->msg_code = PKT_MSG_RES;
     int package_index = find_package(package_list, ident_buf,
-                                     IDENT_SIZE);
+                                     MIN_IDENT_MATCH);
     // Package is not managed in the application
     if (package_index == -1) {
         send_RES(1, NULL, client_fd);
         return 0;
     }
     // Hash is not in the package
-    long long chunk_size = find_hash_in_package
+    uint32_t chunk_size = find_hash_in_package
             (package_list->packages[package_index],
                                           hash_buf, offset);
-    if (chunk_size == -1) {
+    if (chunk_size == 0) {
         send_RES(1, NULL, client_fd);
         return 0;
     }
 
     // Keep sending RES until data_len is met
     uint32_t abs_offset = offset;
-    uint16_t bytes_sent = 0;
+    uint32_t bytes_sent = 0;
     while (bytes_sent < size) {
         abs_offset += bytes_sent;
-        uint16_t remaining = size - bytes_sent;
+        uint32_t remaining = size - bytes_sent;
         union btide_payload res_payload = {0};
         res_payload.response.file_offset = abs_offset;
         strncpy(res_payload.response.chunk_hash, hash_buf, CHUNK_HASH_SIZE);
@@ -41,11 +41,9 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
 
         // Cannot fit the remaining chunk into the packet
         if (remaining > MAX_DATA_SIZE) {
-            get_data(package_list->packages[package_index], hash_buf,
-                     MAX_DATA_SIZE, abs_offset, res_payload.response
-                     .data);
+            get_data(package_list->packages[package_index], MAX_DATA_SIZE,
+                     abs_offset, res_payload.response.data);
             res_payload.response.data_len = MAX_DATA_SIZE;
-
 
             // Failed to handle REQ
             if (send_RES(0, &res_payload, client_fd) == 0) {
@@ -54,7 +52,7 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
             }
             bytes_sent += MAX_DATA_SIZE;
         } else {
-            get_data(package_list->packages[package_index], hash_buf,
+            get_data(package_list->packages[package_index],
                      remaining, abs_offset, res_payload.response
                              .data);
             res_payload.response.data_len = remaining;
@@ -71,7 +69,7 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
 }
 
 void p2p_handle_response(struct btide_packet *packet_buf, struct package_list
-*package_list, int client_fd) {
+*package_list) {
     // The peer does not have the data requested
     if (packet_buf->error > 0) {
         return;
@@ -81,26 +79,24 @@ void p2p_handle_response(struct btide_packet *packet_buf, struct package_list
     uint32_t offset = packet_buf->pl.response.file_offset;
     uint16_t size = packet_buf->pl.response.data_len;
     char data_buf[MAX_DATA_SIZE] = {0};
-    strncpy(data_buf, packet_buf->pl.response.data, size);
+    memcpy(data_buf, packet_buf->pl.response.data, size);
     char hash_buf[SHA256_HEX_STRLEN] = {0};
-    strncpy(hash_buf, packet_buf->pl.request.chunk_hash, SHA256_HEX_LEN);
+    strncpy(hash_buf, packet_buf->pl.response.chunk_hash, SHA256_HEX_LEN);
     char ident_buf[MAX_IDENT_SIZE] = {0};
-    strncpy(ident_buf, packet_buf->pl.request.ident, IDENT_SIZE);
+    strncpy(ident_buf, packet_buf->pl.response.ident, IDENT_SIZE);
 
     // Locate the package and file
     int package_index = find_package(package_list, ident_buf,
-                                     IDENT_SIZE);
+                                     MIN_IDENT_MATCH);
     // Package is not managed in the application
     if (package_index == -1) {
-        send_RES(1, NULL, client_fd);
         return;
     }
-    // Hash is not in the package
-    long long chunk_size = find_hash_in_package
+    uint32_t chunk_size = find_hash_in_package
             (package_list->packages[package_index],
-             hash_buf, offset);
-    if (chunk_size == -1) {
-        send_RES(1, NULL, client_fd);
+             hash_buf, 0);
+    // Chunk hash is not in the package
+    if (chunk_size == 0) {
         return;
     }
 
@@ -165,9 +161,7 @@ void *start_client_handler(void *args) {
             p2p_handle_request(&packet_buf, package_list, client_fd);
             continue;
         } else if (msg_code == PKT_MSG_RES) {
-            printf("CLIENT HANDLER: RECEIVED RES\n");
-            // todo
-            p2p_handle_response(&packet_buf, package_list, client_fd);
+            p2p_handle_response(&packet_buf, package_list);
             continue;
         } else if (msg_code == PKT_MSG_DSN) { // Signal for closing the connection
             remove_peer(peer_list, client.peer_ip, client.peer_port);
@@ -337,9 +331,7 @@ void *start_client(void *args) {
             p2p_handle_request(&packet_buf, package_list, client_fd);
             continue;
         } else if (msg_code == PKT_MSG_RES) {
-            printf("Client: RECEIVED RES\n");
-            // todo
-            p2p_handle_response(&packet_buf, package_list, client_fd);
+            p2p_handle_response(&packet_buf, package_list);
             continue;
         } else if (msg_code == PKT_MSG_DSN) { // Signal for closing the connection
             remove_peer(peer_list, new_peer.peer_ip, new_peer.peer_port);

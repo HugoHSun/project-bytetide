@@ -4,6 +4,7 @@
 #define MAX_BTIDE_LINE_SIZE 5521
 #define MAX_COMMAND_SIZE 16
 #define IP_BUFFER_SIZE 16
+#define MIN_IDENT_SIZE 20
 
 //
 // PART 2
@@ -162,7 +163,7 @@ int main(int argc, char **argv) {
             char ident_buf[MAX_IDENT_SIZE] = {0};
             if (sscanf(current_line, "%15s%c%1024s", command_buf, &space_buf,
                        ident_buf) != 3 || space_buf != ' ' || strlen
-                       (ident_buf) < 20) {
+                       (ident_buf) < MIN_IDENT_SIZE) {
                 printf("Missing identifier argument, please specify whole "
                        "1024 character or at least 20 characters\n");
                 continue;
@@ -205,14 +206,14 @@ int main(int argc, char **argv) {
             // Look for the package
             int package_ind;
             if ((package_ind = find_package(package_list, ident_buf,
-                                         MAX_IDENT_SIZE)) == -1) {
+                                         MIN_IDENT_SIZE)) == -1) {
                 printf("Unable to request chunk, package is not managed\n");
                 continue;
             }
             // Look for the hash in the package
-            long long chunk_size;
+            uint32_t chunk_size;
             if ((chunk_size = find_hash_in_package(package_list->packages[package_ind],
-                  hash_buf, (uint32_t) offset_buf)) == -1) {
+                  hash_buf, (uint32_t) offset_buf)) == 0) {
                 printf("Unable to request chunk, chunk hash does not belong to package\n");
                 continue;
             }
@@ -224,9 +225,8 @@ int main(int argc, char **argv) {
             strncpy(payload.request.chunk_hash, hash_buf, SHA256_HEX_LEN);
             strncpy(payload.request.ident, ident_buf, IDENT_SIZE);
 
-            send_REQ(&payload, peer_ind);
+            send_REQ(&payload, peer_list->peers[peer_ind].peer_fd);
 
-            printf("FETCH COMMAND SUCCESS\n");
             continue;
         }
 

@@ -59,4 +59,3 @@ p2tests:
 
 clean:
 	rm -f *.o pkgmain btide
-	rm -r tests

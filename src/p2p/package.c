@@ -54,7 +54,7 @@ int find_package(struct package_list *list, char *pkg_ident, int match) {
     return -1;
 }
 
-long long find_hash_in_package(struct bpkg_obj *package, char *hash, uint32_t
+uint32_t find_hash_in_package(struct bpkg_obj *package, char *hash, uint32_t
         offset) {
     return bpkg_chunk_hash_check(package, hash, offset);
 }

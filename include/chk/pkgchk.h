@@ -49,7 +49,8 @@ void get_file_full_path(char *full_filename, struct bpkg_obj *obj);
 
 int check_file_existence(char *filename);
 
-int get_data(struct bpkg_obj *obj, char *hash, int size, uint32_t abs_offset, char
+int get_data(struct bpkg_obj *obj, uint32_t size, uint32_t abs_offset,
+        char
         *data_buf);
 
 int write_data(struct bpkg_obj *obj, int size, uint32_t abs_offset, char
@@ -82,7 +83,8 @@ int bpkg_complete_check(struct bpkg_obj *bpkg);
 /**
  * Check if a chunk hash is in the package, return the chunk size if found
  */
-long long bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, uint32_t offset);
+uint32_t bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, uint32_t
+        offset);
 
 /**
  * Retrieves all completed chunks of a package object

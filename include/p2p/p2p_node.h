@@ -11,6 +11,8 @@
 #include "p2p/peer.h"
 #include "p2p/package.h"
 
+#define MIN_IDENT_MATCH 20
+
 struct client_handler_args {
     struct peer new_peer;
     struct peer_list *peer_list;

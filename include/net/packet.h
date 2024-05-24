@@ -24,7 +24,7 @@
 
 struct request_payload {
     uint32_t file_offset;
-    uint16_t data_len;
+    uint32_t data_len;
     char chunk_hash[CHUNK_HASH_SIZE];
     char ident[IDENT_SIZE];
 };

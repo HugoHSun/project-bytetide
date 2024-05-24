@@ -20,7 +20,7 @@ int send_packet(uint16_t msg_code, uint16_t err, union btide_payload *payload,
         packet_buf.pl.response = payload->response;
     }
 
-    size_t send_result = send(peer_fd, &packet_buf, PACKET_SIZE, 0);
+    ssize_t send_result = send(peer_fd, &packet_buf, PACKET_SIZE, 0);
     // The socket is disconnected
     if (send_result <= 0) {
         return 0;
@@ -102,7 +102,6 @@ int send_DSN(int peer_fd) {
 int send_REQ(union btide_payload *req, int peer_fd) {
     if (!send_packet(PKT_MSG_REQ, 0, req, peer_fd)) {
         printf("Failed to send REQ Packet to Peer FD: %d\n", peer_fd);
-        free(req);
         return 0;
     }
 
@@ -112,7 +111,6 @@ int send_REQ(union btide_payload *req, int peer_fd) {
 int send_RES(uint16_t err, union btide_payload *res, int peer_fd) {
     if (!send_packet(PKT_MSG_RES, err, res, peer_fd)) {
         printf("Failed to send RES packet to Peer FD: %d\n", peer_fd);
-        free(res);
         return 0;
     }
 

@@ -29,9 +29,9 @@ int find_package(struct package_list *list, char *pkg_ident, int match);
  * @param package
  * @param hash
  * @param offset
- * @return the chunk size if found, -1 otherwise
+ * @return the chunk size if found, 0 otherwise
  */
-long long find_hash_in_package(struct bpkg_obj *package, char
+uint32_t find_hash_in_package(struct bpkg_obj *package, char
 *hash, uint32_t offset);
 
 void remove_package(struct package_list *list, char *pkg_ident);
