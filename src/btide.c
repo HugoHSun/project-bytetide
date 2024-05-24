@@ -154,6 +154,22 @@ int main(int argc, char **argv) {
                 continue;
             }
 
+            // Create data file if it doesn't exist
+            char data_full_path[MAX_DIRECTORY_SIZE + MAX_FILENAME_SIZE];
+            get_file_full_path(data_full_path, package);
+            if (!check_file_existence(data_full_path)) {
+                FILE *fp = NULL;
+                if ((fp = fopen(data_full_path, "wb")) == NULL) {
+                    perror("fopen - wb:");
+                }
+                // Create file with specified size
+                char null_byte = 0;
+                for (size_t i = 0; i < package->size; ++i) {
+                    fwrite(&null_byte, sizeof(char), 1, fp);
+                }
+                fclose(fp);
+            }
+
             add_package(package_list, package);
             continue;
         }
