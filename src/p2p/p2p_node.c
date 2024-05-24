@@ -167,6 +167,7 @@ void *start_client_handler(void *args) {
         } else if (msg_code == PKT_MSG_RES) {
             printf("CLIENT HANDLER: RECEIVED RES\n");
             // todo
+            p2p_handle_response(&packet_buf, package_list, client_fd);
             continue;
         } else if (msg_code == PKT_MSG_DSN) { // Signal for closing the connection
             remove_peer(peer_list, client.peer_ip, client.peer_port);
@@ -338,6 +339,7 @@ void *start_client(void *args) {
         } else if (msg_code == PKT_MSG_RES) {
             printf("Client: RECEIVED RES\n");
             // todo
+            p2p_handle_response(&packet_buf, package_list, client_fd);
             continue;
         } else if (msg_code == PKT_MSG_DSN) { // Signal for closing the connection
             remove_peer(peer_list, new_peer.peer_ip, new_peer.peer_port);
