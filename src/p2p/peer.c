@@ -60,7 +60,6 @@ int find_peer(struct peer_list *list, char *ip, u_int16_t port) {
 }
 
 void remove_peer(struct peer_list *list, char *ip, u_int16_t port) {
-    printf("REMOVE PEER: %s:%d\n", ip, port);
     int index;
     if ((index = find_peer(list, ip, port)) == -1) {
         printf("Unknown peer, not connected\n");
