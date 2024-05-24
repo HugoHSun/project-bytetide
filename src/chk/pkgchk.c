@@ -413,10 +413,19 @@ int write_data(struct bpkg_obj *obj, uint16_t size, uint32_t abs_offset, char
         for (size_t i = 0; i < obj->size; ++i) {
             fwrite(&null_byte, sizeof(char), 1, fp);
         }
+        fseek(fp, 0, SEEK_SET);
     } else {
         if ((fp = fopen(full_path, "r+b")) == NULL) {
             perror("write_data - r+b:");
         }
+        // Make sure the file size is correct
+        fseek(fp, 0, SEEK_END);
+        long file_size = ftell(fp);
+        char null_byte = 0;
+        for (long i = file_size; i < obj->size; ++i) {
+            fwrite(&null_byte, sizeof(char), 1, fp);
+        }
+        fseek(fp, 0, SEEK_SET);
     }
 
     // printf("WRITING DATA: size: %u offset: %u\n\n", size, abs_offset);
