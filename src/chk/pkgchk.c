@@ -383,12 +383,19 @@ int get_data(struct bpkg_obj *obj, uint32_t size, uint32_t abs_offset,
     if (check_file_existence(full_path) == 0) {
         return 0;
     }
+    if (abs_offset > obj->size) {
+        return 0;
+    }
 
     FILE *fp = fopen(full_path, "rb");
     if (fseek(fp, abs_offset, SEEK_SET) != 0) {
         perror("Failed to offset the file");
         fclose(fp);
         return 0;
+    }
+
+    if ((abs_offset + size) > obj->size) {
+        size = obj->size - abs_offset;
     }
     if (fread(data_buf, sizeof(char), size, fp) < size) {
         perror("get_data:fread:");
@@ -426,6 +433,13 @@ int write_data(struct bpkg_obj *obj, uint16_t size, uint32_t abs_offset, char
             fwrite(&null_byte, sizeof(char), 1, fp);
         }
         fseek(fp, 0, SEEK_SET);
+    }
+
+    if (abs_offset > obj->size) {
+        return 0;
+    }
+    if ((abs_offset + size) > obj->size) {
+        size = obj->size - abs_offset;
     }
 
     // printf("WRITING DATA: size: %u offset: %u\n\n", size, abs_offset);
