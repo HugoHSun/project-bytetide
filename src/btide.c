@@ -181,8 +181,8 @@ int main(int argc, char **argv) {
             char space_buf2 = 0;
             char hash_buf[SHA256_HEX_STRLEN] = {0};
             char space_buf3 = 0;
-            long long offset_buf = INT32_MIN;
-            if (sscanf(current_line, "%15[^0-9]%15[^:]:%d%c%1024s%c%64s%c%lld",
+            uint32_t offset_buf = 0;
+            if (sscanf(current_line, "%15[^0-9]%15[^:]:%d%c%1024s%c%64s%c%d",
                        command_buf, ip_buf, &port_buf, &space_buf1,
                        ident_buf, &space_buf2, hash_buf, &space_buf3,
                        &offset_buf) < 7 || strncmp(command_buf, "FETCH ",
@@ -190,12 +190,6 @@ int main(int argc, char **argv) {
                        space_buf2 != ' ') {
                 printf("Missing arguments from command\n");
                 continue;
-            }
-            if (offset_buf != INT32_MIN && offset_buf < 0) {
-                printf("Invalid Input");
-                continue;
-            } else if (offset_buf == INT32_MIN) {
-                offset_buf = 0;
             }
             // Look for the peer
             int peer_ind;
@@ -213,7 +207,7 @@ int main(int argc, char **argv) {
             // Look for the hash in the package
             uint32_t chunk_size;
             if ((chunk_size = find_hash_in_package(package_list->packages[package_ind],
-                  hash_buf, (uint32_t) offset_buf)) == 0) {
+                  hash_buf, offset_buf)) == 0) {
                 printf("Unable to request chunk, chunk hash does not belong to package\n");
                 continue;
             }

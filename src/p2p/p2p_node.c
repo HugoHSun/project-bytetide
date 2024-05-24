@@ -55,7 +55,7 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
             get_data(package_list->packages[package_index],
                      remaining, abs_offset, res_payload.response
                              .data);
-            res_payload.response.data_len = remaining;
+            res_payload.response.data_len = (uint16_t) remaining;
 
             // Failed to handle REQ
             if (send_RES(0, &res_payload, client_fd) == 0) {
@@ -94,7 +94,7 @@ void p2p_handle_response(struct btide_packet *packet_buf, struct package_list
     }
     uint32_t chunk_size = find_hash_in_package
             (package_list->packages[package_index],
-             hash_buf, 0);
+             hash_buf, offset);
     // Chunk hash is not in the package
     if (chunk_size == 0) {
         return;
