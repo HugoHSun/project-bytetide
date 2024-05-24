@@ -390,31 +390,40 @@ int get_data(struct bpkg_obj *obj, uint32_t size, uint32_t abs_offset,
         fclose(fp);
         return 0;
     }
-    fread(data_buf, sizeof(char), size, fp);
+    if (fread(data_buf, sizeof(char), size, fp) < size) {
+        perror("get_data:fread:");
+    }
     fclose(fp);
     return 1;
 }
 
 
-int write_data(struct bpkg_obj *obj, int size, uint32_t abs_offset, char
+int write_data(struct bpkg_obj *obj, uint16_t size, uint32_t abs_offset, char
 *data_buf) {
     char full_path[MAX_DATA_DIRECTORY_SIZE + MAX_FILENAME_SIZE];
     get_file_full_path(full_path, obj);
 
     FILE *fp = NULL;
     if (check_file_existence(full_path) == 0) {
-        fp = fopen(full_path, "wb");
+        if ((fp = fopen(full_path, "wb")) == NULL) {
+            perror("write_data - wb:");
+        }
     } else {
-        fp = fopen(full_path, "r+b");
+        if ((fp = fopen(full_path, "r+b")) == NULL) {
+            perror("write_data - r+b:");
+        }
     }
 
+    // printf("WRITING DATA: size: %u offset: %u\n\n", size, abs_offset);
     if (fseek(fp, abs_offset, SEEK_SET) != 0) {
         perror("Failed to offset the file");
         fclose(fp);
         return 0;
     }
 
-    fwrite(data_buf, sizeof(char), size, fp);
+    if (fwrite(data_buf, sizeof(char), size, fp) < size) {
+        perror("write_data:fwrite:");
+    }
     fclose(fp);
     return 1;
 }
@@ -530,7 +539,23 @@ uint32_t bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, uint32_t
             if (offset < current_node->value->offset || offset >=
             (current_node->value->offset + current_node->value->size)) {
                 continue;
+            } else {
+                return current_node->value->size;
             }
+        }
+    }
+
+    return 0;
+}
+
+
+uint32_t get_offset_from_hash(struct bpkg_obj *bpkg, char *hash) {
+    merkle_tree *hashes = bpkg->hashes;
+    // Iterate through all leaf nodes
+    for (size_t i = hashes->num_inner_nodes; i < hashes->num_nodes; ++i) {
+        struct merkle_tree_node *current_node = hashes->nodes[i];
+        if (strcmp(current_node->expected_hash, hash) == 0) {
+                return current_node->value->offset;
         }
     }
 

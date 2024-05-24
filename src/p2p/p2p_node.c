@@ -28,12 +28,19 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
         return 0;
     }
 
-    // Keep sending RES until data_len is met
-    uint32_t abs_offset = offset;
+    uint32_t abs_offset;
+    if (offset == 0) {
+        abs_offset = get_offset_from_hash
+                (package_list->packages[package_index], hash_buf);
+    } else {
+        abs_offset = offset;
+    }
     uint32_t bytes_sent = 0;
+    // Keep sending RES until data_len is met
     while (bytes_sent < size) {
         abs_offset += bytes_sent;
         uint32_t remaining = size - bytes_sent;
+
         union btide_payload res_payload = {0};
         res_payload.response.file_offset = abs_offset;
         strncpy(res_payload.response.chunk_hash, hash_buf, CHUNK_HASH_SIZE);
@@ -50,6 +57,11 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
                 printf("Client Handler: Failed to send RES\n");
                 return 0;
             }
+
+            /*printf("***SENT REQ offset: %u size: %u bytes sent: %u remaining:"
+                   " %u chunk_size: %u hash: %s\n", abs_offset,
+                   size, bytes_sent, remaining, chunk_size, hash_buf);*/
+
             bytes_sent += MAX_DATA_SIZE;
         } else {
             get_data(package_list->packages[package_index],
@@ -62,6 +74,11 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
                 printf("Client Handler: Failed to send RES\n");
                 return 0;
             }
+
+            /*printf("***SENT REQ offset: %u size: %u bytes sent: %u remaining:"
+                   " %u chunk_size: %u hash: %s\n", abs_offset,
+                   size, bytes_sent, remaining, chunk_size, hash_buf);*/
+
             bytes_sent += remaining;
         }
     }
@@ -90,6 +107,7 @@ void p2p_handle_response(struct btide_packet *packet_buf, struct package_list
                                      MIN_IDENT_MATCH);
     // Package is not managed in the application
     if (package_index == -1) {
+        printf("p2p_handle_response: Invalid package\n");
         return;
     }
     uint32_t chunk_size = find_hash_in_package
@@ -97,9 +115,12 @@ void p2p_handle_response(struct btide_packet *packet_buf, struct package_list
              hash_buf, offset);
     // Chunk hash is not in the package
     if (chunk_size == 0) {
+        printf("p2p_handle_response: Invalid chunk hash\n");
         return;
     }
 
+    /*printf("***RES offset: %u size: %u chunk_size: %u hash: %s\n", offset,
+           size, chunk_size, hash_buf);*/
     write_data(package_list->packages[package_index], size, offset, data_buf);
 }
 

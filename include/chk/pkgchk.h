@@ -53,7 +53,7 @@ int get_data(struct bpkg_obj *obj, uint32_t size, uint32_t abs_offset,
         char
         *data_buf);
 
-int write_data(struct bpkg_obj *obj, int size, uint32_t abs_offset, char
+int write_data(struct bpkg_obj *obj, uint16_t size, uint32_t abs_offset, char
         *data_buf);
 
 /**
@@ -85,6 +85,14 @@ int bpkg_complete_check(struct bpkg_obj *bpkg);
  */
 uint32_t bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, uint32_t
         offset);
+
+/**
+ * Get the file offset from a chunk hash
+ * @param bpkg
+ * @param hash
+ * @return
+ */
+uint32_t get_offset_from_hash(struct bpkg_obj *bpkg, char *hash);
 
 /**
  * Retrieves all completed chunks of a package object
