@@ -214,7 +214,7 @@ int main(int argc, char **argv) {
             payload.request.file_offset = offset_buf;
             payload.request.data_len = chunk_size;
             strncpy(payload.request.chunk_hash, hash_buf, SHA256_HEX_LEN);
-            strncpy(payload.request.ident, ident_buf, MAX_IDENT_SIZE);
+            strncpy(payload.request.ident, ident_buf, IDENT_SIZE);
 
             send_REQ(&payload, peer_ind);
 
