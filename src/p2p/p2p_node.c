@@ -136,7 +136,7 @@ void *start_client_handler(void *args) {
     free(args);
 
     // Failed to send ACP or receive ACK
-    if (!send_ACP(client)) {
+    if (!send_ACP(client.peer_fd)) {
         printf("Failed to send ACP or receive ACK in Client Handler\n");
         pthread_exit((void *)-1);
     }
@@ -149,11 +149,11 @@ void *start_client_handler(void *args) {
         ssize_t read_result = read(client_fd, &packet_buf, PACKET_SIZE);
         // Client disconnected
         if (read_result <= 0) {
-            remove_peer(peer_list, client.peer_ip, client.peer_port);
+            // remove_peer(peer_list, client.peer_ip, client.peer_port);
             pthread_exit((void *) -1);
         }
         // Try again after reading an invalid packet
-        if (read_result < PAYLOAD_MAX) {
+        if (read_result < PACKET_SIZE) {
             printf("Invalid packet from Client FD: %d LEN: %lu\n", client_fd,
                    read_result);
             continue;
@@ -165,13 +165,19 @@ void *start_client_handler(void *args) {
             p2p_handle_request(&packet_buf, package_list, client_fd);
             continue;
         } else if (msg_code == PKT_MSG_RES) {
-            // union btide_payload res_buf = {0};
+            printf("CLIENT HANDLER: RECEIVED RES\n");
             // todo
             continue;
         }
 
-        packet_handler_non_payload(msg_code, client);
+        // Signal for closing the connection
+        if (packet_handler_non_payload(msg_code, client.peer_fd) == -1) {
+            remove_peer(peer_list, client.peer_ip, client.peer_port);
+            break;
+        }
     }
+
+    pthread_exit((void *) 0);
 }
 
 int setup_server_socket(u_int16_t port) {
@@ -311,11 +317,11 @@ void *start_client(void *args) {
         ssize_t read_result = read(client_fd, &packet_buf, PACKET_SIZE);
         // Client disconnected
         if (read_result <= 0) {
-            remove_peer(peer_list, new_peer.peer_ip, new_peer.peer_port);
+            // remove_peer(peer_list, new_peer.peer_ip, new_peer.peer_port);
             pthread_exit((void *) -1);
         }
         // Try again after reading an invalid packet
-        if (read_result < PAYLOAD_MAX) {
+        if (read_result < PACKET_SIZE) {
             printf("Invalid packet from Client FD: %d LEN: %lu\n", client_fd,
                    read_result);
             continue;
@@ -327,12 +333,17 @@ void *start_client(void *args) {
             p2p_handle_request(&packet_buf, package_list, client_fd);
             continue;
         } else if (msg_code == PKT_MSG_RES) {
-            // union btide_payload res_buf = {0};
+            printf("Client: RECEIVED RES\n");
             // todo
             continue;
         }
 
-        packet_handler_non_payload(msg_code, new_peer);
+        // Signal for closing the connection
+        if (packet_handler_non_payload(msg_code, client_fd) == -1) {
+            printf("MARK READ: %zd MSG: %d \n", read_result, msg_code);
+            remove_peer(peer_list, new_peer.peer_ip, new_peer.peer_port);
+            break;
+        }
     }
 
     pthread_exit((void *) 0);

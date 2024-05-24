@@ -66,9 +66,7 @@ int get_packet_tm(struct btide_packet *packet_buf, int peer_fd) {
     return 1;
 }
 
-int send_ACP(struct peer peer) {
-    int peer_fd = peer.peer_fd;
-
+int send_ACP(int peer_fd) {
     // Send the ACP packet
     if (!send_packet(PKT_MSG_ACP, 0, NULL, peer_fd)) {
         return 0;
@@ -147,11 +145,12 @@ int handle_PNG(int peer_fd) {
  * Handle received packets with no payload
  * @param packet_buf
  * @param peer
- * @return 1 if successfully handled, 0 when failed
+ * @return 1 if successfully handled, 0 when handling failed, -1 to signal
+ * remove peer
  */
-int packet_handler_non_payload(uint16_t msg_code, struct peer peer) {
+int packet_handler_non_payload(uint16_t msg_code, int peer_fd) {
     if (msg_code == PKT_MSG_ACP) {
-        return handle_ACP(peer.peer_fd);
+        return handle_ACP(peer_fd);
     }
 
     if (msg_code == PKT_MSG_ACK) {
@@ -159,11 +158,11 @@ int packet_handler_non_payload(uint16_t msg_code, struct peer peer) {
     }
 
     if (msg_code == PKT_MSG_DSN) {
-        return 0;
+        return -1;
     }
 
     if (msg_code == PKT_MSG_PNG) {
-        return handle_PNG(peer.peer_fd);
+        return handle_PNG(peer_fd);
     }
 
     if (msg_code == PKT_MSG_POG) {

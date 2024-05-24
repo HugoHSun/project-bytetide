@@ -10,7 +10,6 @@
 
 #include "p2p/peer.h"
 #include "p2p/package.h"
-#include "net/packet.h"
 
 struct client_handler_args {
     struct peer new_peer;

@@ -7,6 +7,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "net/packet.h"
+
 #define MAX_IP_SIZE 16
 #define PEERS_INIT_SIZE 8
 

@@ -2,11 +2,11 @@
 #define NETPKT_H
 
 #include <stdint.h>
+#include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <bits/types/struct_timeval.h>
-
-#include "p2p/peer.h"
 
 #define PAYLOAD_MAX (4092)
 #define PACKET_SIZE 4096
@@ -52,10 +52,10 @@ int get_packet_tm(struct btide_packet *packet_buf, int peer_fd);
 
 /**
  * Send ACP to peer and wait for ACK with 3 seconds timeout
- * @param peer
+ * @param peer_fd
  * @return 1 if success, 0 otherwise
  */
-int send_ACP(struct peer peer);
+int send_ACP(int peer_fd);
 
 /**
  * Handle ACP by sending back ACK
@@ -100,6 +100,6 @@ int send_PNG(int peer_fd);
  * @param peer
  * @return 1 if successfully handled, 0 when failed
  */
-int packet_handler_non_payload(uint16_t msg_code, struct peer peer);
+int packet_handler_non_payload(uint16_t msg_code, int peer_fd);
 
 #endif

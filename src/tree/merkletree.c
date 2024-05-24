@@ -25,7 +25,7 @@ merkle_tree_node *create_node(int key, chunk *value, char
 merkle_tree *create_tree(merkle_tree_node **nodes, uint32_t nhashes, uint32_t
 nchunks) {
     if (nodes == NULL) {
-        perror("Error Creating Tree\n");
+        printf("Error Creating Tree\n");
         return  NULL;
     }
 
