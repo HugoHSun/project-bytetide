@@ -1,0 +1,14 @@
+PACKAGES
+ADDPACKAGE ./p2_tests/test10_more_package_commands/test1.bpkg
+ADDPACKAGE nonononono_exist.bkkg
+PACKAGES
+REMPACKAGE 123
+REMPACKAGE hsjejqwppurfp9fu9e3fjlwkfjj3r99up3lkNO_MANAGED_PACKAGE
+ADDPACKAGE ./p2_tests/test10_more_package_commands/test2.bpkg
+PACKAGES
+REMPACKAGE a8d88613e30c4cb64f7
+REMPACKAGE a8d88613e30c4cb64f7e929b1947109b
+PACKAGES
+REMPACKAGE 29875e383ca546031464be1efe94a79d
+PACKAGES
+QUIT

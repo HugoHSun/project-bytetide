@@ -1,6 +1,7 @@
 # COMP2017 Assignment 3 - Project ByteTide
 ## Semester 1, 2024
 
+
 ## General
 - All the header files are in the `include` directory, where they are 
   further divided into folders. Every header file has a respective C file in 
@@ -47,6 +48,10 @@
   utilises all the above C files, `pkgchk` for bpkg helper functions and 
   `merkletree.c` for packet data integrity check. Responsible for handling 
   commands and sending packets. 
+
+### How to run
+- Run `make btide` and then `./btide <config file>`
+
 
 ## Tests
 ### Organisation

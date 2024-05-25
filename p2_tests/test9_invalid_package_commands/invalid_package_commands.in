@@ -1,0 +1,4 @@
+ADDPACKAGE
+ADDPACKAGE non_exist_file.haha
+ADDPACKAGE invalid.bpkg
+QUIT

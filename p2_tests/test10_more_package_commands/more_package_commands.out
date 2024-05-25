@@ -1,0 +1,12 @@
+No packages managed
+Cannot open file
+1. a8d88613e30c4cb64f7e929b1947109b, p2tests_dir/test1.data : INCOMPLETE
+Missing identifier argument, please specify whole 1024 character or at least 20 characters
+Identifier provided does not match managed packages
+1. a8d88613e30c4cb64f7e929b1947109b, p2tests_dir/test1.data : INCOMPLETE
+2. 29875e383ca546031464be1efe94a79d, p2tests_dir/test2.data : INCOMPLETE
+Missing identifier argument, please specify whole 1024 character or at least 20 characters
+Package has been removed
+1. 29875e383ca546031464be1efe94a79d, p2tests_dir/test2.data : INCOMPLETE
+Package has been removed
+No packages managed

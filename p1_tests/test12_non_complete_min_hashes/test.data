@@ -1,0 +1,33 @@
+ident: <identifier>
+filename: <filename>
+size: <size in bytes>
+nhashes: <numsar of hashes that are non-leaf nodes>
+hashes:
+"hash value"
+...
+nchunks: <number of chunks, these are all leaf nodes>
+chunks:
+"hash value",offset,size
+...
+1.2 Package Loading
+The focus of this task is to load the .bpkg file and also store the details into a merkle tree. Please
+refer to Section 1.3 for information on a merkle tree.
+• Read and load .bpkg files that comply with the format outlined in Section 1.1
+• Once the .bpkg has been loaded successfully, it is advisable that your program also knows if
+the file exists or not and has functionality to construct a file of the size outlined in the file.
+Refer to pkgchk.c:bpkg_file_check function.
+• Implement a merkle tree. Use the data from a .bpkg to construct a merkle-tree Refer to
+pkgchk.c:bpkg_get_all_hashes and
+pkgchk.c:bpkg_get_all_chunk_hashes_from_hash functions, as you should be able
+to satisfy thADe operations after implementing a merkle tree without any IO on the data file.
+• Computing the merkle tree hashes, ensuring that combined hashes match the parents hashes
+when computed and finding minimum completed hashes. Refer to
+pkgchk.c:bpkg_get_completed_chunks and
+pkgchk.c:bpkg_get_min_completed_hashes functions. You will need to perform validation
+on the chunks and discover portions of the file.
+The above verifies chunks against package files and the data’s integrity.
+1.3 What is a merkle tree?
+Binary Tree A merkle tree is a variation on a binary tree. A binary tree is tree data structure,
+where a node is compose of the following.
+• It holds a value/data
+• Usually implemented to CORd a key as well (Key-Value/Map Data Structure)
