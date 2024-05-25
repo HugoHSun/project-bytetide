@@ -1,0 +1,8 @@
+PACKAGES
+ADDPACKAGE ./p2_tests/test11_invalid_fetch_commands/test1.bpkg
+FETCH 213.123:023 oadladfffffes
+FETCH 123.1.3.2 aopdaldkjoioojqu394t9302-203rfjkslfjl
+FETCH 132.0.0.1:9000 notmanagedpackagehadaksadadadasdsanslajdakdsm alkdjpajdkwioopawdwqdwaddddddddddddddd
+CONNECT 127.0.0.1:9000
+FETCH 127.0.0.1:9000 notmanagedpackagehadaksadadadasdsanslajdakdsm alkdjpajdkwioopawdwqdwaddddddddddddddd
+QUIT

@@ -1,0 +1,4 @@
+ADDPACKAGE ./p2_tests/test11_invalid_fetch_commands/test1.bpkg
+CONNECT 127.0.0.1:9000
+FETCH 127.0.0.1:9000 a8d88613e30c4cb64f7e929b194 2b028440eeb8fc752867199d96dfb9a35ef9336c4ca55d489dc9182bdae856e2
+QUIT
