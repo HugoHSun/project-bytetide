@@ -66,10 +66,6 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
             }
 
             bytes_sent += MAX_DATA_SIZE;
-            /*printf("***SENT REQ offset: %u size: %u bytes sent: %u remaining:"
-                   " %u chunk_size: %u\n", current_file_offset,
-                   res_payload.response.data_len, bytes_sent, remaining,
-                   target_chunk->size);*/
         } else {
             get_data(package, remaining, current_file_offset,
                      res_payload.response.data);
@@ -81,10 +77,6 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
             }
 
             bytes_sent += remaining;
-            /*printf("***SENT REQ offset: %u size: %u bytes sent: %u "
-                   "chunk_size: %u\n", current_file_offset,
-                   res_payload.response.data_len, bytes_sent,
-                   target_chunk->size);*/
         }
     }
 
@@ -142,9 +134,6 @@ void p2p_handle_response(struct btide_packet *packet_buf, struct package_list
     char *chunk_buf = calloc(chunk_len, sizeof(char));
     memcpy(chunk_buf, data_buf, data_size);
     bytes_recv += data_size;
-    /*printf("FIRST RES full chunk size: %d data size: %d file offset: %d\n",
-           chunk_len,
-           data_size, file_offset);*/
     while (bytes_recv < chunk_len) {
         ssize_t read_result = read(client_fd, packet_buf, PACKET_SIZE);
         // Client disconnected
@@ -162,9 +151,6 @@ void p2p_handle_response(struct btide_packet *packet_buf, struct package_list
         chunk_buf = realloc(chunk_buf, bytes_recv + data_size);
         memcpy(chunk_buf + bytes_recv, packet_buf->pl.response.data, data_size);
         bytes_recv += data_size;
-        /*printf("RES received bytes: %d data size: %d file offset: %d\n",
-               bytes_recv,
-               data_size, packet_buf->pl.response.file_offset);*/
     }
 
     // Check the integrity of the received chunk
@@ -175,8 +161,6 @@ void p2p_handle_response(struct btide_packet *packet_buf, struct package_list
         return;
     }
 
-    /*printf("***WRITING file offset: %u size: %u chunk_size: %u\n",
-           file_offset, bytes_recv, chunk_len);*/
     write_data(package, bytes_recv, file_offset, chunk_buf);
     free(chunk_buf);
 }

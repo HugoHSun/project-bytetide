@@ -33,10 +33,10 @@ peer.o: src/p2p/peer.c
 package.o: src/p2p/package.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
-p2p_node.o: src/p2p/p2p_node.c
+packet.o: src/net/packet.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
-packet.o: src/net/packet.c
+p2p_node.o: src/p2p/p2p_node.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
 
 btide: src/btide.c config.o p2p_node.o peer.o package.o packet.o pkgchk.o merkletree.o sha256.o
