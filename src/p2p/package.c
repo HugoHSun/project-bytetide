@@ -38,7 +38,7 @@ void add_package(struct package_list *list, struct bpkg_obj *new_package) {
  * Find the package with pkg_ident in the package list
  * @param list
  * @param pkg_ident
- * @param match
+ * @param match first n character to match
  * @return the index in the package list, -1 when failed
  */
 int find_package(struct package_list *list, char *pkg_ident, int match) {
@@ -52,11 +52,6 @@ int find_package(struct package_list *list, char *pkg_ident, int match) {
         }
     }
     return -1;
-}
-
-uint32_t find_hash_in_package(struct bpkg_obj *package, char *hash, uint32_t
-        offset) {
-    return bpkg_chunk_hash_check(package, hash, offset);
 }
 
 void remove_package(struct package_list *list, char *pkg_ident) {

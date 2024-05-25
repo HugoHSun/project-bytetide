@@ -34,7 +34,7 @@ struct client_args {
 };
 
 /**
- * Start a server thread to listen connection requests
+ * Start a server thread to handle any connection requests
  * @param args
  * @return
  */
@@ -44,7 +44,8 @@ struct client_args *create_client_args(char *ip, uint16_t port, struct
         peer_list *peer_list, struct package_list *package_list);
 
 /**
- * Start a client thread to connect to a new peer
+ * Start a client thread to connect to a new peer and handle any packets
+ * received from the peer
  * @param arg struct client_args type
  * @return
  */

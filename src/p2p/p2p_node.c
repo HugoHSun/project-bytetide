@@ -3,15 +3,13 @@
 int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
         *package_list, int client_fd) {
     // Retrieve the data in the REQ packet
-    uint32_t offset = packet_buf->pl.request.file_offset;
-    uint32_t size = packet_buf->pl.request.data_len;
+    uint32_t file_offset = packet_buf->pl.request.file_offset;
+    uint32_t data_size = packet_buf->pl.request.data_len;
     char hash_buf[SHA256_HEX_STRLEN] = {0};
     strncpy(hash_buf, packet_buf->pl.request.chunk_hash, SHA256_HEX_LEN);
     char ident_buf[MAX_IDENT_SIZE] = {0};
     strncpy(ident_buf, packet_buf->pl.request.ident, IDENT_SIZE);
 
-    // Prepare RES to send back
-    packet_buf->msg_code = PKT_MSG_RES;
     int package_index = find_package(package_list, ident_buf,
                                      MIN_IDENT_MATCH);
     // Package is not managed in the application
@@ -19,84 +17,92 @@ int p2p_handle_request(struct btide_packet *packet_buf, struct package_list
         send_RES(1, NULL, client_fd);
         return 0;
     }
+    struct bpkg_obj *package = package_list->packages[package_index];
+
+    chunk *target_chunk = get_chunk_from_hash(package, hash_buf, file_offset);
     // Hash is not in the package
-    uint32_t chunk_size = find_hash_in_package
-            (package_list->packages[package_index],
-                                          hash_buf, offset);
-    if (chunk_size == 0) {
+    if (target_chunk == NULL) {
+        send_RES(1, NULL, client_fd);
+        return 0;
+    }
+    // Do not have the chunk
+    if (!check_chunk_completion(package, hash_buf, file_offset)) {
         send_RES(1, NULL, client_fd);
         return 0;
     }
 
-    uint32_t abs_offset;
-    if (offset == 0) {
-        abs_offset = get_offset_from_hash
-                (package_list->packages[package_index], hash_buf);
-    } else {
-        abs_offset = offset;
+    uint32_t current_file_offset = file_offset;
+    // Specified offset is beyond the start of a chunk, send the remaining
+    // bytes in the chunk
+    if (current_file_offset > target_chunk->offset) {
+        uint32_t chunk_offset = current_file_offset - target_chunk->offset;
+        data_size = target_chunk->size - chunk_offset;
     }
+    if (current_file_offset == 0) {
+        current_file_offset = target_chunk->offset;
+    }
+
     uint32_t bytes_sent = 0;
-    // Keep sending RES until data_len is met
-    while (bytes_sent < size) {
-        abs_offset += bytes_sent;
-        uint32_t remaining = size - bytes_sent;
+    uint32_t remaining;
+    // Keep sending RES until the requested data is fully sent
+    while (bytes_sent < data_size) {
+        current_file_offset += bytes_sent;
+        remaining = data_size - bytes_sent;
 
         union btide_payload res_payload = {0};
-        res_payload.response.file_offset = abs_offset;
+        res_payload.response.file_offset = current_file_offset;
         strncpy(res_payload.response.chunk_hash, hash_buf, CHUNK_HASH_SIZE);
         strncpy(res_payload.response.ident, ident_buf, IDENT_SIZE);
 
         // Cannot fit the remaining chunk into the packet
         if (remaining > MAX_DATA_SIZE) {
-            get_data(package_list->packages[package_index], MAX_DATA_SIZE,
-                     abs_offset, res_payload.response.data);
+            get_data(package, MAX_DATA_SIZE, current_file_offset,
+                     res_payload.response.data);
             res_payload.response.data_len = MAX_DATA_SIZE;
 
-            // Failed to handle REQ
             if (send_RES(0, &res_payload, client_fd) == 0) {
                 printf("Client Handler: Failed to send RES\n");
                 return 0;
             }
-
-            /*printf("***SENT REQ offset: %u size: %u bytes sent: %u remaining:"
-                   " %u chunk_size: %u hash: %s\n", abs_offset,
-                   size, bytes_sent, remaining, chunk_size, hash_buf);*/
 
             bytes_sent += MAX_DATA_SIZE;
+            /*printf("***SENT REQ offset: %u size: %u bytes sent: %u remaining:"
+                   " %u chunk_size: %u\n", current_file_offset,
+                   res_payload.response.data_len, bytes_sent, remaining,
+                   target_chunk->size);*/
         } else {
-            get_data(package_list->packages[package_index],
-                     remaining, abs_offset, res_payload.response
-                             .data);
+            get_data(package, remaining, current_file_offset,
+                     res_payload.response.data);
             res_payload.response.data_len = (uint16_t) remaining;
 
-            // Failed to handle REQ
             if (send_RES(0, &res_payload, client_fd) == 0) {
                 printf("Client Handler: Failed to send RES\n");
                 return 0;
             }
 
-            /*printf("***SENT REQ offset: %u size: %u bytes sent: %u remaining:"
-                   " %u chunk_size: %u hash: %s\n", abs_offset,
-                   size, bytes_sent, remaining, chunk_size, hash_buf);*/
-
             bytes_sent += remaining;
+            /*printf("***SENT REQ offset: %u size: %u bytes sent: %u "
+                   "chunk_size: %u\n", current_file_offset,
+                   res_payload.response.data_len, bytes_sent,
+                   target_chunk->size);*/
         }
     }
+
     return 1;
 }
 
 void p2p_handle_response(struct btide_packet *packet_buf, struct package_list
-*package_list) {
+*package_list, int client_fd) {
     // The peer does not have the data requested
     if (packet_buf->error > 0) {
         return;
     }
 
-    // Retrieve the data in the RES packet
-    uint32_t offset = packet_buf->pl.response.file_offset;
-    uint16_t size = packet_buf->pl.response.data_len;
+    // Retrieve the data in the first received RES packet
+    uint32_t file_offset = packet_buf->pl.response.file_offset;
+    uint16_t data_size = packet_buf->pl.response.data_len;
     char data_buf[MAX_DATA_SIZE] = {0};
-    memcpy(data_buf, packet_buf->pl.response.data, size);
+    memcpy(data_buf, packet_buf->pl.response.data, data_size);
     char hash_buf[SHA256_HEX_STRLEN] = {0};
     strncpy(hash_buf, packet_buf->pl.response.chunk_hash, SHA256_HEX_LEN);
     char ident_buf[MAX_IDENT_SIZE] = {0};
@@ -107,21 +113,72 @@ void p2p_handle_response(struct btide_packet *packet_buf, struct package_list
                                      MIN_IDENT_MATCH);
     // Package is not managed in the application
     if (package_index == -1) {
-        printf("p2p_handle_response: Invalid package\n");
+        printf("RES handling: Invalid package\n");
         return;
     }
-    uint32_t chunk_size = find_hash_in_package
-            (package_list->packages[package_index],
-             hash_buf, offset);
-    // Chunk hash is not in the package
-    if (chunk_size == 0) {
-        printf("p2p_handle_response: Invalid chunk hash\n");
+    struct bpkg_obj *package = package_list->packages[package_index];
+
+    // Invalid file offset
+    if (file_offset > package->size) {
         return;
     }
 
-    /*printf("***RES offset: %u size: %u chunk_size: %u hash: %s\n", offset,
-           size, chunk_size, hash_buf);*/
-    write_data(package_list->packages[package_index], size, offset, data_buf);
+    chunk *target_chunk = get_chunk_from_hash(package, hash_buf, file_offset);
+    if (target_chunk == NULL) {
+        printf("RES handling: Invalid chunk hash\n");
+        return;
+    }
+
+    uint32_t chunk_len = target_chunk->size;
+    if (file_offset > target_chunk->offset) {
+        chunk_len -= (file_offset - target_chunk->offset);
+    }
+    if (file_offset == 0) {
+        file_offset = target_chunk->offset;
+    }
+
+    // Keep waiting for RES until all data is received
+    uint32_t bytes_recv = 0;
+    char *chunk_buf = calloc(chunk_len, sizeof(char));
+    memcpy(chunk_buf, data_buf, data_size);
+    bytes_recv += data_size;
+    /*printf("FIRST RES full chunk size: %d data size: %d file offset: %d\n",
+           chunk_len,
+           data_size, file_offset);*/
+    while (bytes_recv < chunk_len) {
+        ssize_t read_result = read(client_fd, packet_buf, PACKET_SIZE);
+        // Client disconnected
+        if (read_result <= 0) {
+            free(chunk_buf);
+            return;
+        }
+        // Invalid RES packet
+        if (read_result < PACKET_SIZE || packet_buf->msg_code != PKT_MSG_RES) {
+            free(chunk_buf);
+            return;
+        }
+
+        data_size = packet_buf->pl.response.data_len;
+        chunk_buf = realloc(chunk_buf, bytes_recv + data_size);
+        memcpy(chunk_buf + bytes_recv, packet_buf->pl.response.data, data_size);
+        bytes_recv += data_size;
+        /*printf("RES received bytes: %d data size: %d file offset: %d\n",
+               bytes_recv,
+               data_size, packet_buf->pl.response.file_offset);*/
+    }
+
+    // Check the integrity of the received chunk
+    char chunk_hash[SHA256_HEX_STRLEN] = {0};
+    compute_hash(chunk_buf, bytes_recv, chunk_hash);
+    if (strncmp(chunk_hash, hash_buf, CHUNK_HASH_SIZE) != 0) {
+        free(chunk_buf);
+        return;
+    }
+
+    /*printf("***WRITING file offset: %u size: %u chunk_size: %u\n",
+           file_offset, bytes_recv, chunk_len);*/
+    write_data(package, bytes_recv, file_offset, chunk_buf);
+    free(chunk_buf);
 }
 
 struct client_handler_args *create_client_handler_args(int peer_fd, char
@@ -142,7 +199,11 @@ struct client_handler_args *create_client_handler_args(int peer_fd, char
     return new_args;
 }
 
-// Handle connection request from another peer and subsequent packets
+/**
+ * Handle connection request from another peer and subsequent packets
+ * @param args
+ * @return
+ */
 void *start_client_handler(void *args) {
     // Retrieve arguments
     struct peer client = ((struct client_handler_args *) args)->new_peer;
@@ -161,7 +222,7 @@ void *start_client_handler(void *args) {
 
     int client_fd = client.peer_fd;
     struct btide_packet packet_buf = {0};
-    // Listen for any packets from the client
+    // Handle packets received from the peer
     while (1) {
         ssize_t read_result = read(client_fd, &packet_buf, PACKET_SIZE);
         // Client disconnected
@@ -182,7 +243,7 @@ void *start_client_handler(void *args) {
             p2p_handle_request(&packet_buf, package_list, client_fd);
             continue;
         } else if (msg_code == PKT_MSG_RES) {
-            p2p_handle_response(&packet_buf, package_list);
+            p2p_handle_response(&packet_buf, package_list, client_fd);
             continue;
         } else if (msg_code == PKT_MSG_DSN) { // Signal for closing the connection
             remove_peer(peer_list, client.peer_ip, client.peer_port);
@@ -220,6 +281,11 @@ int setup_server_socket(u_int16_t port) {
     return server_fd;
 }
 
+/**
+ * Start a server thread to handle any new connection requests
+ * @param args
+ * @return
+ */
 void *start_server(void *args) {
     u_int16_t server_port = ((struct server_args *) args)->port;
     int max_peers = ((struct server_args *) args)->max_peers;
@@ -278,7 +344,12 @@ struct client_args *create_client_args(char *ip, uint16_t port, struct
     return new_client_args;
 }
 
-// Client Thread
+/**
+ * Start a client thread to connect to a new peer and handle any packets
+ * received from the peer
+ * @param arg struct client_args type
+ * @return
+ */
 void *start_client(void *args) {
     // Retrieve arguments
     struct sockaddr_in server_addr;
@@ -294,7 +365,7 @@ void *start_client(void *args) {
             ->package_list;
     free(args);
 
-    // Set up client socket
+    // Set up a client socket
     int client_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (client_fd == -1) {
         perror("Client: Failed to create socket");
@@ -323,25 +394,26 @@ void *start_client(void *args) {
         pthread_exit((void *) -1);
     }
 
+    // Successfully connected
     printf("Connection established with peer\n");
-    // Add the peer
     struct peer new_peer = {0};
     new_peer.peer_fd = client_fd;
     inet_ntop(AF_INET, &server_addr.sin_addr, new_peer.peer_ip, MAX_IP_SIZE);
     new_peer.peer_port = ntohs(server_addr.sin_port);
     add_peer(peer_list, new_peer);
 
-    // Listen for any packets from the client
+    // Handle any packets received from the peer
     while (1) {
         ssize_t read_result = read(client_fd, &packet_buf, PACKET_SIZE);
-        // Client disconnected
+        // Peer disconnected
         if (read_result <= 0) {
             // remove_peer(peer_list, new_peer.peer_ip, new_peer.peer_port);
+            close(client_fd);
             pthread_exit((void *) -1);
         }
         // Try again after reading an invalid packet
         if (read_result < PACKET_SIZE) {
-            printf("Invalid packet from Client FD: %d LEN: %lu\n", client_fd,
+            printf("Invalid packet from Peer FD: %d LEN: %lu\n", client_fd,
                    read_result);
             continue;
         }
@@ -352,7 +424,7 @@ void *start_client(void *args) {
             p2p_handle_request(&packet_buf, package_list, client_fd);
             continue;
         } else if (msg_code == PKT_MSG_RES) {
-            p2p_handle_response(&packet_buf, package_list);
+            p2p_handle_response(&packet_buf, package_list, client_fd);
             continue;
         } else if (msg_code == PKT_MSG_DSN) { // Signal for closing the connection
             remove_peer(peer_list, new_peer.peer_ip, new_peer.peer_port);

@@ -26,9 +26,9 @@ struct bpkg_query {
 
 struct bpkg_obj {
     char ident[MAX_IDENT_SIZE];
-    char directory[MAX_DATA_DIRECTORY_SIZE];
-    char filename[MAX_FILENAME_SIZE];
-    uint32_t size;
+    char directory[MAX_DATA_DIRECTORY_SIZE]; // directory that contain the data file
+    char filename[MAX_FILENAME_SIZE]; // data file name
+    uint32_t size; // data file size
     uint32_t nhashes;
     uint32_t nchunks;
     struct merkle_tree *hashes;
@@ -40,20 +40,41 @@ struct bpkg_obj {
 struct bpkg_obj *bpkg_load(const char *path);
 
 /**
- * Loads the package for when a valid path is given, with no error messages
+ * Loads the package for a given path is given, with no error messages
  * printed
+ * @return heap address of the bpkg_obj, NULL if failed to load
  */
 struct bpkg_obj *bpkg_load_no_message(const char *path, char *directory);
 
-void get_file_full_path(char *full_filename, struct bpkg_obj *obj);
+/**
+ * Get the full path of the data file in bpkg
+ * @param full_path_buf buffer to store the full path
+ * @param obj bpkg object
+ */
+void get_file_full_path(char *full_path_buf, struct bpkg_obj *obj);
 
-int check_file_existence(char *filename);
+int check_file_existence(char *full_filename);
 
-int get_data(struct bpkg_obj *obj, uint32_t size, uint32_t abs_offset,
-        char
+/**
+ * Get the data in the bpkg data file, with specified file offset and size
+ * @param obj bpkg object
+ * @param size data size
+ * @param file_offset file offset
+ * @param data_buf buffer to store the data (with size >= data size)
+ * @return
+ */
+int get_data(struct bpkg_obj *obj, uint32_t size, uint32_t file_offset, char
         *data_buf);
 
-int write_data(struct bpkg_obj *obj, uint16_t size, uint32_t abs_offset, char
+/**
+ * Write the data in the data buffer into the bpkg data file
+ * @param obj bpkg object
+ * @param file_size data size
+ * @param file_offset file offset
+ * @param data_buf buffer that contains the data (with size >= data size)
+ * @return
+ */
+int write_data(struct bpkg_obj *obj, uint32_t file_size, uint32_t file_offset, char
         *data_buf);
 
 /**
@@ -76,23 +97,23 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj *bpkg);
 struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj *bpkg);
 
 /**
- * Check if a file is complete in the package
+ * Check if the data file is complete in the package
+ * @return 1 if is complete, 0 otherwise
  */
 int bpkg_complete_check(struct bpkg_obj *bpkg);
 
-/**
- * Check if a chunk hash is in the package, return the chunk size if found
- */
-uint32_t bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, uint32_t
-        offset);
+int check_chunk_completion(struct bpkg_obj *bpkg, char *hash, uint32_t
+file_offset);
 
 /**
- * Get the file offset from a chunk hash
+ * Get the chunk corresponding to the chunk hash and file offset
  * @param bpkg
  * @param hash
- * @return
+ * @param file_offset
+ * @return heap memory address of the chunk, NULL if not found
  */
-uint32_t get_offset_from_hash(struct bpkg_obj *bpkg, char *hash);
+chunk *get_chunk_from_hash(struct bpkg_obj *bpkg, char *hash, uint32_t
+file_offset);
 
 /**
  * Retrieves all completed chunks of a package object

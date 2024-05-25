@@ -353,19 +353,24 @@ struct bpkg_obj *bpkg_load_no_message(const char *path, char *directory) {
 }
 
 
-void get_file_full_path(char *full_filename, struct bpkg_obj *bpkg) {
+/**
+ * Get the full path of the data file in bpkg
+ * @param full_path_buf buffer to store the full path
+ * @param obj bpkg object
+ */
+void get_file_full_path(char *full_path_buf, struct bpkg_obj *bpkg) {
     if (bpkg->directory[0] != '\0') {
-        strncpy(full_filename, bpkg->directory, MAX_DATA_DIRECTORY_SIZE - 1);
-        strcat(full_filename, "/");
-        strncat(full_filename, bpkg->filename, MAX_FILENAME_SIZE - 1);
+        strncpy(full_path_buf, bpkg->directory, MAX_DATA_DIRECTORY_SIZE - 1);
+        strcat(full_path_buf, "/");
+        strncat(full_path_buf, bpkg->filename, MAX_FILENAME_SIZE - 1);
     } else {
-        strcpy(full_filename, bpkg->filename);
+        strcpy(full_path_buf, bpkg->filename);
     }
 }
 
 
-int check_file_existence(char *filename) {
-    FILE * fp = fopen(filename, "r");
+int check_file_existence(char *full_filename) {
+    FILE * fp = fopen(full_filename, "r");
     if (fp != NULL) {
         fclose(fp);
         return 1;
@@ -374,7 +379,15 @@ int check_file_existence(char *filename) {
 }
 
 
-int get_data(struct bpkg_obj *obj, uint32_t size, uint32_t abs_offset,
+/**
+ * Get the data in the bpkg data file, with specified file offset and size
+ * @param obj bpkg object
+ * @param size data size
+ * @param file_offset file offset
+ * @param data_buf buffer to store the data (with size >= data size)
+ * @return
+ */
+int get_data(struct bpkg_obj *obj, uint32_t size, uint32_t file_offset,
         char
         *data_buf) {
     char full_path[MAX_DATA_DIRECTORY_SIZE + MAX_FILENAME_SIZE];
@@ -383,19 +396,19 @@ int get_data(struct bpkg_obj *obj, uint32_t size, uint32_t abs_offset,
     if (check_file_existence(full_path) == 0) {
         return 0;
     }
-    if (abs_offset > obj->size) {
+    if (file_offset > obj->size) {
         return 0;
     }
 
     FILE *fp = fopen(full_path, "rb");
-    if (fseek(fp, abs_offset, SEEK_SET) != 0) {
+    if (fseek(fp, file_offset, SEEK_SET) != 0) {
         perror("Failed to offset the file");
         fclose(fp);
         return 0;
     }
 
-    if ((abs_offset + size) > obj->size) {
-        size = obj->size - abs_offset;
+    if ((file_offset + size) > obj->size) {
+        size = obj->size - file_offset;
     }
     if (fread(data_buf, sizeof(char), size, fp) < size) {
         perror("get_data:fread:");
@@ -405,7 +418,15 @@ int get_data(struct bpkg_obj *obj, uint32_t size, uint32_t abs_offset,
 }
 
 
-int write_data(struct bpkg_obj *obj, uint16_t size, uint32_t abs_offset, char
+/**
+ * Write the data in the data buffer into the bpkg data file
+ * @param obj bpkg object
+ * @param file_size data size
+ * @param file_offset file offset
+ * @param data_buf buffer that contains the data (with size >= data size)
+ * @return
+ */
+int write_data(struct bpkg_obj *obj, uint32_t file_size, uint32_t file_offset, char
 *data_buf) {
     char full_path[MAX_DATA_DIRECTORY_SIZE + MAX_FILENAME_SIZE];
     get_file_full_path(full_path, obj);
@@ -435,21 +456,14 @@ int write_data(struct bpkg_obj *obj, uint16_t size, uint32_t abs_offset, char
         fseek(fp, 0, SEEK_SET);
     }
 
-    if (abs_offset > obj->size) {
-        return 0;
-    }
-    if ((abs_offset + size) > obj->size) {
-        size = obj->size - abs_offset;
-    }
-
-    // printf("WRITING DATA: size: %u offset: %u\n\n", size, abs_offset);
-    if (fseek(fp, abs_offset, SEEK_SET) != 0) {
+    if (fseek(fp, file_offset, SEEK_SET) != 0) {
         perror("Failed to offset the file");
         fclose(fp);
         return 0;
     }
 
-    if (fwrite(data_buf, sizeof(char), size, fp) < size) {
+    // printf("WRITING DATA: size: %u offset: %u\n\n", size, abs_offset);
+    if (fwrite(data_buf, sizeof(char), file_size, fp) < file_size) {
         perror("write_data:fwrite:");
     }
     fclose(fp);
@@ -531,7 +545,8 @@ int compute_chunk_hashes(struct bpkg_obj *bpkg) {
 
 
 /**
- * Check if a file is complete in the package
+ * Check if the data file is complete in the package
+ * @return 1 if is complete, 0 otherwise
  */
 int bpkg_complete_check(struct bpkg_obj *bpkg) {
     if (compute_chunk_hashes(bpkg) == 0) {
@@ -549,45 +564,68 @@ int bpkg_complete_check(struct bpkg_obj *bpkg) {
 }
 
 
-/**
- * Check if a chunk hash is in the package, return the chunk size if found
- */
-uint32_t bpkg_chunk_hash_check(struct bpkg_obj *bpkg, char *hash, uint32_t
-        offset) {
+int check_chunk_completion(struct bpkg_obj *bpkg, char *hash, uint32_t
+file_offset) {
+    compute_chunk_hashes(bpkg);
     merkle_tree *hashes = bpkg->hashes;
     // Iterate through all leaf nodes
     for (size_t i = hashes->num_inner_nodes; i < hashes->num_nodes; ++i) {
         struct merkle_tree_node *current_node = hashes->nodes[i];
-        if (strcmp(current_node->expected_hash, hash) == 0) {
-            // No offset specified
-            if (offset == 0) {
-                return current_node->value->size;
+        if (strcmp(current_node->expected_hash, hash) == 0 &&
+            compare_node_hash(current_node)) {
+            // Either file_offset is specified with 0 or is not specified
+            // (default value = 0)
+            if (file_offset == 0) {
+                return 1;
             }
-            // Offset does not match, continue searching
-            if (offset < current_node->value->offset || offset >=
-            (current_node->value->offset + current_node->value->size)) {
+
+            // Specified file offset is not in the chunk offset range
+            if (file_offset < current_node->value->offset || file_offset >=
+                                                             (current_node->value->offset +
+                                                              current_node->value->size)) {
                 continue;
+                // In the chunk offset range
             } else {
-                return current_node->value->size;
+                return 1;
             }
         }
     }
-
     return 0;
 }
 
 
-uint32_t get_offset_from_hash(struct bpkg_obj *bpkg, char *hash) {
+/**
+ * Get the chunk corresponding to the chunk hash and file offset
+ * @param bpkg
+ * @param hash
+ * @param file_offset
+ * @return heap memory address of the chunk, NULL if not found
+ */
+chunk *get_chunk_from_hash(struct bpkg_obj *bpkg, char *hash, uint32_t
+file_offset) {
     merkle_tree *hashes = bpkg->hashes;
     // Iterate through all leaf nodes
     for (size_t i = hashes->num_inner_nodes; i < hashes->num_nodes; ++i) {
         struct merkle_tree_node *current_node = hashes->nodes[i];
         if (strcmp(current_node->expected_hash, hash) == 0) {
-                return current_node->value->offset;
+            // Either file_offset is specified with 0 or is not specified
+            // (default value = 0)
+            if (file_offset == 0) {
+                return current_node->value;
+            }
+
+            // Specified file offset is not in the chunk offset range
+            if (file_offset < current_node->value->offset || file_offset >=
+            (current_node->value->offset + current_node->value->size)) {
+                continue;
+                // In the chunk offset range
+            } else {
+                return current_node->value;
+            }
         }
     }
 
-    return 0;
+    return NULL;
 }
 
 

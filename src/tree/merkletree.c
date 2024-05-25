@@ -67,8 +67,23 @@ void free_tree(merkle_tree *tree) {
     free(tree);
 }
 
-void compute_leaf_hashes(merkle_tree *hashes, char *filename) {
-    FILE *data_file = fopen(filename, "rb");
+/**
+ * Compute the hash of given data
+ * @param data
+ * @param data_size
+ * @param hash_buf buffer to store the computed hash
+ */
+void compute_hash(char *data, uint32_t data_size, char *hash_buf) {
+    struct sha256_compute_data c_data = {0};
+    uint8_t hash_out[SHA256_INT_SZ];
+    sha256_compute_data_init(&c_data);
+    sha256_update(&c_data, data, data_size);
+    sha256_finalize(&c_data, hash_out);
+    sha256_output_hex(&c_data, hash_buf);
+}
+
+void compute_leaf_hashes(merkle_tree *hashes, char *full_filename) {
+    FILE *data_file = fopen(full_filename, "rb");
     if (data_file == NULL) {
         printf("Failed to open the file\n");
         fclose(data_file);
@@ -88,13 +103,8 @@ void compute_leaf_hashes(merkle_tree *hashes, char *filename) {
         fread(data_buf, sizeof(char), current_chunk->size, data_file);
 
         // Compute the hash of the current chunk
-        struct sha256_compute_data c_data = {0};
-        uint8_t hash_out[SHA256_INT_SZ];
-        sha256_compute_data_init(&c_data);
-        sha256_update(&c_data, data_buf, current_chunk->size);
-        sha256_finalize(&c_data, hash_out);
-        sha256_output_hex(&c_data, current_node->computed_hash);
-
+        compute_hash(data_buf, current_chunk->size,
+                     current_node->computed_hash);
         free(data_buf);
     }
 
@@ -114,18 +124,17 @@ void compute_inner_hashes(merkle_tree  *hashes) {
                                                              SHA256_HEX_LEN];
         }
 
-        // Compute the hash of the current node
-        struct sha256_compute_data c_data = {0};
-        uint8_t hash_out[SHA256_INT_SZ];
-        sha256_compute_data_init(&c_data);
-        sha256_update(&c_data, data_buf, 2 * SHA256_HEX_LEN);
-        sha256_finalize(&c_data, hash_out);
-        sha256_output_hex(&c_data, current_node->computed_hash);
-
+        // Compute the hash of the current inner node
+        compute_hash(data_buf, 2 * SHA256_HEX_LEN, current_node->computed_hash);
         free(data_buf);
     }
 }
 
+/**
+ * Check if the computed hash and the expected hash of a node matches
+ * @param node
+ * @return 1 if matches, 0 otherwise
+ */
 int compare_node_hash(merkle_tree_node *node) {
     if (node == NULL) {
         return 0;
@@ -183,6 +192,13 @@ char **get_all_leaf_hashes_from_node(merkle_tree *hashes, merkle_tree_node
     return leaf_hashes;
 }
 
+/**
+ * Check if a node (with child_key) is a descendant of another node (with
+ * parent_key)
+ * @param parent_key
+ * @param child_key
+ * @return 1 if true, 0 otherwise
+ */
 int check_child_from_node(int parent_key, int child_key) {
     // Not possible that child key is smaller than parent key
     if (child_key < parent_key) {

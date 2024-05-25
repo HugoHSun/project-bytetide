@@ -6,10 +6,6 @@
 #define IP_BUFFER_SIZE 16
 #define MIN_IDENT_SIZE 20
 
-//
-// PART 2
-//
-
 int main(int argc, char **argv) {
     // Load the configuration file
     struct config config = {0};
@@ -55,7 +51,7 @@ int main(int argc, char **argv) {
         (current_line) == 5 || strlen(current_line) == 6)) {
             // Send PNG to all peers
             for (int i = 0; i < peer_list->max_size; ++i) {
-                if (!(peer_list->peers[i].peer_fd <= 0)) {
+                if (peer_list->peers[i].peer_fd > 0) {
                     send_PNG(peer_list->peers[i].peer_fd);
                 }
             }
@@ -63,7 +59,7 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        // Append a space at the end for strcmp
+        // Append a space at the end of the command string for strcmp
         for (int i = 0; i < (MAX_COMMAND_SIZE - 1); ++i) {
             if (command_buf[i] == '\0') {
                 command_buf[i] = ' ';
@@ -92,6 +88,7 @@ int main(int argc, char **argv) {
                 continue;
             }
 
+            // Maximum number of peers reached
             if (peer_list->num_peers >= config.max_peers) {
                 printf("Unable to connect to request peer\n");
                 continue;
@@ -101,7 +98,9 @@ int main(int argc, char **argv) {
             struct client_args *new_args = create_client_args(ip_buf,
                     port_buf, peer_list, package_list);
             pthread_t client_thread;
-            pthread_create(&client_thread, NULL, start_client, new_args);
+            if (pthread_create(&client_thread, NULL, start_client, new_args) != 0) {
+                printf("btide: Failed to start client\n");
+            }
             continue;
         }
 
@@ -154,7 +153,7 @@ int main(int argc, char **argv) {
                 continue;
             }
 
-            // Create data file if it doesn't exist
+            // Create the data file if it doesn't exist
             char data_full_path[MAX_DIRECTORY_SIZE + MAX_FILENAME_SIZE];
             get_file_full_path(data_full_path, package);
             if (!check_file_existence(data_full_path)) {
@@ -207,23 +206,27 @@ int main(int argc, char **argv) {
                 printf("Missing arguments from command\n");
                 continue;
             }
+
             // Look for the peer
-            int peer_ind;
-            if ((peer_ind = find_peer(peer_list, ip_buf, port_buf)) == -1) {
+            int peer_index;
+            if ((peer_index = find_peer(peer_list, ip_buf, port_buf)) == -1) {
                 printf("Unable to request chunk, peer not in list\n");
                 continue;
             }
+            int peer_fd = peer_list->peers[peer_index].peer_fd;
+
             // Look for the package
-            int package_ind;
-            if ((package_ind = find_package(package_list, ident_buf,
-                                         MIN_IDENT_SIZE)) == -1) {
+            int package_index;
+            if ((package_index = find_package(package_list, ident_buf,
+                                              MIN_IDENT_SIZE)) == -1) {
                 printf("Unable to request chunk, package is not managed\n");
                 continue;
             }
+            struct bpkg_obj *package = package_list->packages[package_index];
+
             // Look for the hash in the package
-            uint32_t chunk_size;
-            if ((chunk_size = find_hash_in_package(package_list->packages[package_ind],
-                  hash_buf, offset_buf)) == 0) {
+            chunk *target_chunk = get_chunk_from_hash(package, hash_buf, offset_buf);
+            if (target_chunk == NULL) {
                 printf("Unable to request chunk, chunk hash does not belong to package\n");
                 continue;
             }
@@ -231,11 +234,11 @@ int main(int argc, char **argv) {
             // Construct REQ payload
             union btide_payload payload = {0};
             payload.request.file_offset = offset_buf;
-            payload.request.data_len = chunk_size;
+            payload.request.data_len = target_chunk->size;
             strncpy(payload.request.chunk_hash, hash_buf, SHA256_HEX_LEN);
             strncpy(payload.request.ident, ident_buf, IDENT_SIZE);
 
-            send_REQ(&payload, peer_list->peers[peer_ind].peer_fd);
+            send_REQ(&payload, peer_fd);
 
             continue;
         }

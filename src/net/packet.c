@@ -1,7 +1,7 @@
 #include "net/packet.h"
 
 /**
- *  * Send a packet to a peer
+ * Send a packet to a peer
  * @param msg_code
  * @param err
  * @param payload
@@ -66,6 +66,11 @@ int get_packet_tm(struct btide_packet *packet_buf, int peer_fd) {
     return 1;
 }
 
+/**
+ * Send ACP to peer and wait for ACK with 3 seconds timeout
+ * @param peer_fd
+ * @return 1 if success, 0 otherwise
+ */
 int send_ACP(int peer_fd) {
     // Send the ACP packet
     if (!send_packet(PKT_MSG_ACP, 0, NULL, peer_fd)) {
@@ -81,6 +86,11 @@ int send_ACP(int peer_fd) {
     return 1;
 }
 
+/**
+ * Handle ACP by sending back ACK
+ * @param peer_fd
+ * @return 1 if success, 0 otherwise
+ */
 int handle_ACP(int peer_fd) {
     if (!send_packet(PKT_MSG_ACK, 0, NULL, peer_fd)) {
         printf("Failed to send ACK Packet to Peer FD: %d\n", peer_fd);
@@ -89,6 +99,11 @@ int handle_ACP(int peer_fd) {
     return 1;
 }
 
+/**
+ * Send DSN to peer
+ * @param peer_fd
+ * @return 1 if success, 0 otherwise
+ */
 int send_DSN(int peer_fd) {
     // Send the DSN packet
     if (!send_packet(PKT_MSG_DSN, 0, NULL, peer_fd)) {
@@ -99,6 +114,12 @@ int send_DSN(int peer_fd) {
     return 1;
 }
 
+/**
+ * Send REQ to peer
+ * @param req REQ payload
+ * @param peer_fd
+ * @return 1 if success, 0 otherwise
+ */
 int send_REQ(union btide_payload *req, int peer_fd) {
     if (!send_packet(PKT_MSG_REQ, 0, req, peer_fd)) {
         printf("Failed to send REQ Packet to Peer FD: %d\n", peer_fd);
@@ -108,6 +129,12 @@ int send_REQ(union btide_payload *req, int peer_fd) {
     return 1;
 }
 
+/**
+ * Send RES to peer
+ * @param res the RES payload to be send back
+ * @param peer_fd
+ * @return 1 if success, 0 otherwise
+ */
 int send_RES(uint16_t err, union btide_payload *res, int peer_fd) {
     if (!send_packet(PKT_MSG_RES, err, res, peer_fd)) {
         printf("Failed to send RES packet to Peer FD: %d\n", peer_fd);
@@ -117,20 +144,25 @@ int send_RES(uint16_t err, union btide_payload *res, int peer_fd) {
     return 1;
 }
 
+/**
+ * Send PNG
+ * @param peer_fd
+ * @return 1 if success, 0 otherwise
+ */
 int send_PNG(int peer_fd) {
     if (!send_packet(PKT_MSG_PNG, 0, NULL, peer_fd)) {
         printf("Failed to send PNG packet to Peer FD: %d\n", peer_fd);
         return 0;
     }
 
-    // Wait for POG with 3 seconds timeout
-    /*struct btide_packet packet_buf = {0};
-    if (!get_packet_tm(&packet_buf, peer_fd)) {
-        return 0;
-    }*/
     return 1;
 }
 
+/**
+ * Handle PNG by sending back POG
+ * @param peer_fd
+ * @return
+ */
 int handle_PNG(int peer_fd) {
     if (!send_packet(PKT_MSG_POG, 0, NULL, peer_fd)) {
         printf("Failed to send POG Packet to Peer FD: %d\n", peer_fd);

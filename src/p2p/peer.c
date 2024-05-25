@@ -43,7 +43,7 @@ void add_peer(struct peer_list *list, struct peer new_peer) {
 }
 
 /**
- * Find the index of the peer in the list
+ * Find the index of the peer in the peer list
  * @param list
  * @param peer
  * @return index of the peer, -1 otherwise
@@ -59,6 +59,12 @@ int find_peer(struct peer_list *list, char *ip, u_int16_t port) {
     return -1;
 }
 
+/**
+ * Close the peer socket and remove the peer from peer list
+ * @param list
+ * @param ip
+ * @param port
+ */
 void remove_peer(struct peer_list *list, char *ip, u_int16_t port) {
     int index;
     if ((index = find_peer(list, ip, port)) == -1) {

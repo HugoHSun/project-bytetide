@@ -8,7 +8,6 @@
 #include <sys/socket.h>
 #include <bits/types/struct_timeval.h>
 
-#define PAYLOAD_MAX (4092)
 #define PACKET_SIZE 4096
 #define IDENT_SIZE 1024
 #define CHUNK_HASH_SIZE 64
@@ -48,6 +47,12 @@ struct btide_packet {
     union btide_payload pl;
 };
 
+/**
+ * Wait for a packet with a timeout of 3 seconds
+ * @param packet_buf
+ * @param peer_fd
+ * @return
+ */
 int get_packet_tm(struct btide_packet *packet_buf, int peer_fd);
 
 /**
@@ -95,7 +100,7 @@ int send_RES(uint16_t err, union btide_payload *res, int peer_fd);
 int send_PNG(int peer_fd);
 
 /**
- * Send POG
+ * Handle PNG by sending back POG
  * @param peer_fd
  * @return
  */

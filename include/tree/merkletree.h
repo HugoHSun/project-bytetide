@@ -47,15 +47,35 @@ void free_node(merkle_tree_node *node);
 
 void free_tree(merkle_tree *tree);
 
-void compute_leaf_hashes(merkle_tree  *hashes, char *filename);
+/**
+ * Compute the hash of given data
+ * @param data
+ * @param data_size
+ * @param hash_buf buffer to store the computed hash
+ */
+void compute_hash(char *data, uint32_t data_size, char *hash_buf);
+
+void compute_leaf_hashes(merkle_tree  *hashes, char *full_filename);
 
 void compute_inner_hashes(merkle_tree  *hashes);
 
+/**
+ * Check if the computed hash and the expected hash of a node matches
+ * @param node
+ * @return 1 if matches, 0 otherwise
+ */
 int compare_node_hash(merkle_tree_node *node);
 
 char **get_all_leaf_hashes_from_node(merkle_tree *hashes, merkle_tree_node
 *node);
 
+/**
+ * Check if a node (with child_key) is a descendant of another node (with
+ * parent_key)
+ * @param parent_key
+ * @param child_key
+ * @return 1 if true, 0 otherwise
+ */
 int check_child_from_node(int parent_key, int child_key);
 
 #endif
